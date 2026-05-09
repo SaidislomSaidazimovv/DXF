@@ -31,3 +31,6 @@ htmlcov/
 
 # Lokal foydalanuvchi konfig (hard-coded yo'llar bilan)
 .mcp.json
+
+# Streamlit secrets (parol va boshqa maxfiy ma'lumotlar — git'ga hech qachon)
+.streamlit/secrets.toml

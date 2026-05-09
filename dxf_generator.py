@@ -117,7 +117,7 @@ def draw_panel(msp, part, transform):
                 ).set_placement((gx + diameter / 2 + 2, gy))
 
 
-def generate_furniture_dxf(cut_layout: dict, project_id: int) -> str:
+def generate_furniture_dxf(cut_layout: dict, project_id, output_dir=None) -> str:
     doc = ezdxf.new(dxfversion="R2010")
     msp = doc.modelspace()
 
@@ -157,9 +157,10 @@ def generate_furniture_dxf(cut_layout: dict, project_id: int) -> str:
         }
         draw_panel(msp, part, adjusted)
 
-    output_dir = f"output/project_{project_id}"
+    if output_dir is None:
+        output_dir = f"output/project_{project_id}"
     os.makedirs(output_dir, exist_ok=True)
-    dxf_path = f"{output_dir}/cutting_plan.dxf"
+    dxf_path = os.path.join(output_dir, "cutting_plan.dxf")
     doc.saveas(dxf_path)
     print(f"DXF saqlandi: {dxf_path}")
     return dxf_path
