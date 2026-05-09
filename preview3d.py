@@ -550,17 +550,34 @@ def _render_html(scene_data, layout_data, project_id):
   /* === 2D scene === */
   #scene-2d {{
     position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: #f8fafc; overflow: auto; padding: 70px 20px 20px;
+    background: #f1f5f9; overflow-y: auto; padding: 70px 24px 100px;
   }}
-  #scene-2d svg {{ display: block; margin: 0 auto; user-select: none; }}
+  #scene-2d .sheet-block {{
+    background: white; border-radius: 10px; padding: 16px 20px 20px;
+    margin: 16px auto; max-width: 1400px;
+    box-shadow: 0 2px 10px rgba(15,23,42,0.07);
+  }}
+  #scene-2d .sheet-header {{
+    display: flex; justify-content: space-between; align-items: baseline;
+    color: #0f172a; font-size: 16px; font-weight: 700; margin-bottom: 12px;
+    padding-bottom: 10px; border-bottom: 1px solid #e2e8f0;
+  }}
+  #scene-2d .sheet-header .sheet-meta {{
+    color: #64748b; font-size: 12px; font-weight: 400;
+  }}
+  #scene-2d .sheet-svg {{
+    display: block; width: 100%; height: auto;
+    background: #fafafa; border: 1px solid #cbd5e1; border-radius: 4px;
+    user-select: none;
+  }}
   #scene-2d .panel-rect {{ cursor: pointer; transition: fill 0.1s; }}
   #scene-2d .panel-rect:hover {{ fill: rgba(220,38,38,0.18) !important; }}
-  #scene-2d .panel-rect.selected {{ fill: rgba(59,130,246,0.22) !important; stroke: #1d4ed8 !important; stroke-width: 3 !important; }}
-  #scene-2d .sheet-rect {{ fill: #ffffff; stroke: #1e293b; stroke-width: 3; }}
-  #scene-2d .sheet-label {{ fill: #1e293b; font-family: 'Segoe UI', sans-serif; font-weight: 700; }}
-  #scene-2d .panel-label {{ fill: #0f172a; font-family: 'Segoe UI', sans-serif; pointer-events: none; }}
+  #scene-2d .panel-rect.selected {{ fill: rgba(59,130,246,0.25) !important; stroke: #1d4ed8 !important; stroke-width: 5 !important; }}
+  #scene-2d .sheet-bg {{ fill: #ffffff; stroke: #94a3b8; stroke-width: 4; }}
+  #scene-2d .panel-label {{ fill: #0f172a; font-family: 'Segoe UI', sans-serif; pointer-events: none; font-weight: 700; }}
+  #scene-2d .panel-dim {{ fill: #475569; font-family: 'Segoe UI', sans-serif; pointer-events: none; }}
   #scene-2d .hole-marker {{ pointer-events: none; }}
-  #scene-2d .banding-rect {{ fill: none; stroke: #b45309; stroke-width: 1; stroke-dasharray: 6 4; pointer-events: none; }}
+  #scene-2d .banding-rect {{ fill: none; stroke: #b45309; stroke-width: 2; stroke-dasharray: 8 5; pointer-events: none; }}
 
   /* 2D tooltip (hover) */
   #tooltip-2d {{
@@ -601,16 +618,22 @@ def _render_html(scene_data, layout_data, project_id):
   #info-2d-content .ops-list li .op-why {{ color: #cbd5e1; margin-top: 4px; font-size: 12px; }}
   #info-2d-content .ops-list li .op-coords {{ color: #94a3b8; font-size: 11px; font-family: monospace; }}
 
+  /* Belgilar — yuqorida kompakt strip, kontentni yopmaydi */
   #legend-2d {{
-    top: 90px; left: 16px; max-width: 360px; background: rgba(15,23,42,0.94);
-    color: #e2e8f0; border: 1px solid rgba(77,171,247,0.3);
+    position: fixed; top: 70px; left: 0; right: 0; z-index: 80;
+    background: rgba(15,23,42,0.96); color: #e2e8f0;
+    padding: 10px 24px; display: flex; flex-wrap: wrap; gap: 18px;
+    align-items: center; justify-content: center;
+    border-bottom: 1px solid rgba(77,171,247,0.3); font-size: 12px;
   }}
-  #legend-2d h2 {{ color: #4dabf7; font-size: 13px; margin-bottom: 10px; }}
-  #legend-2d .leg-block {{ margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }}
-  #legend-2d .leg-block:last-child {{ border-bottom: none; }}
-  #legend-2d .leg-line {{ display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 12px; }}
-  #legend-2d .leg-sw {{ width: 28px; height: 16px; flex-shrink: 0; border-radius: 2px; }}
-  #legend-2d .leg-circle {{ width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }}
+  #legend-2d .leg-line {{
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }}
+  #legend-2d .leg-sw {{ width: 22px; height: 12px; flex-shrink: 0; border-radius: 2px; }}
+  #legend-2d .leg-circle {{ width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }}
+  #legend-2d b {{ color: #4dabf7; font-weight: 600; }}
+  /* 2D scene — agar legend ko'rinsa, padding qo'shamiz */
+  #scene-2d.with-legend {{ padding-top: 122px; }}
 </style>
 </head>
 <body>
@@ -633,21 +656,14 @@ def _render_html(scene_data, layout_data, project_id):
     <div id="info-2d-content">Panelga sichqonchani olib boring yoki bossangiz ma'lumot ko'rinadi.</div>
   </div>
 
-  <!-- 2D belgilar paneli (legend) -->
-  <div id="legend-2d" class="panel" style="display:none;">
-    <h2>📋 Belgilar tushuntirishi</h2>
-    <div class="leg-block">
-      <div class="leg-line"><span class="leg-sw" style="background:#fee2e2;border:2px solid #dc2626"></span><b>Qizil chiziq</b> — kesish chegarasi (CNC pichoq yo'li)</div>
-      <div class="leg-line"><span class="leg-sw" style="background:#fef3c7;border:1px dashed #b45309"></span><b>Sariq dashed</b> — banding ayirilgan, asl panel chegarasi</div>
-    </div>
-    <div class="leg-block">
-      <div class="leg-line"><span class="leg-circle" style="background:#22c55e"></span><b>35mm yashil</b> — petlya / chashka teshigi (Blum standarti)</div>
-      <div class="leg-line"><span class="leg-circle" style="background:#eab308"></span><b>8mm sariq</b> — konfirmat (Eurosrew, panel-panel ulash)</div>
-      <div class="leg-line"><span class="leg-circle" style="background:#a855f7"></span><b>5mm siyohrang</b> — polka shtifti</div>
-    </div>
-    <div class="leg-block">
-      <div class="leg-line"><span class="leg-sw" style="background:#fff;border:2px solid #1e293b"></span><b>Oq to'rtburchak</b> — LDSP listi (2750×1830mm)</div>
-    </div>
+  <!-- 2D belgilar — yuqorida kompakt strip -->
+  <div id="legend-2d" style="display:none;">
+    <span class="leg-line"><span class="leg-sw" style="background:#fee2e2;border:2px solid #dc2626"></span><b>Qizil</b> kesish chegara</span>
+    <span class="leg-line"><span class="leg-sw" style="background:#fef3c7;border:1px dashed #b45309"></span><b>Sariq dashed</b> banding</span>
+    <span class="leg-line"><span class="leg-circle" style="background:#22c55e"></span><b>35mm</b> petlya/chashka</span>
+    <span class="leg-line"><span class="leg-circle" style="background:#eab308"></span><b>8mm</b> konfirmat</span>
+    <span class="leg-line"><span class="leg-circle" style="background:#a855f7"></span><b>5mm</b> shtift</span>
+    <span class="leg-line" style="color:#64748b">Panelga bossangiz tushuntirish chiqadi</span>
   </div>
 
   <!-- 3D scene konteyneri (canvas shu yerga joylashadi) -->
@@ -808,82 +824,104 @@ const MATERIAL_INFO = {{
 
 // =====================================================================
 // 2D SVG renderer (cutting plan / DXF kabi)
+// Har list alohida katta SVG, vertikal stack.
+// Y axis FLIPPED (DXF kabi: Y=0 PASTDA, yuqoriga ko'tariladi).
 // =====================================================================
 function render2DLayout() {{
   const sheetW = LAYOUT_DATA.sheet_w_mm;
   const sheetH = LAYOUT_DATA.sheet_h_mm;
-  const gap = LAYOUT_DATA.sheet_gap_mm;
-  const sheets = LAYOUT_DATA.sheets_used;
+  const numSheets = LAYOUT_DATA.sheets_used;
 
-  const totalW = sheets * sheetW + (sheets - 1) * gap;
-  const totalH = sheetH + 200;  // sarlavha matnlari uchun ustki bo'sh joy
-  const padding = 80;
-
-  const viewW = totalW + 2 * padding;
-  const viewH = totalH + 2 * padding;
-
-  // SVG ko'rinishi taxminan 90% ekranga moslashadi
-  const displayW = Math.min(window.innerWidth - 80, viewW * 0.55);
-
-  let svg = `<svg viewBox="${{-padding}} ${{-100}} ${{viewW}} ${{viewH}}" `;
-  svg += `width="${{displayW}}" preserveAspectRatio="xMidYMid meet">`;
-
-  // === Listlar ===
-  for (let s = 0; s < sheets; s++) {{
-    const sx = s * (sheetW + gap);
-    svg += `<rect class="sheet-rect" x="${{sx}}" y="0" width="${{sheetW}}" height="${{sheetH}}"/>`;
-    svg += `<text class="sheet-label" x="${{sx + 20}}" y="-30" font-size="48">LIST ${{s + 1}} / ${{sheets}}</text>`;
-    svg += `<text class="sheet-label" x="${{sx + sheetW - 20}}" y="-30" font-size="24" text-anchor="end" fill="#64748b">${{sheetW}} × ${{sheetH}} mm</text>`;
-  }}
-
-  // === Panellar ===
+  // Panellarni listga guruhlash
+  const bySheet = {{}};
   LAYOUT_DATA.placements.forEach((p, idx) => {{
-    const sx = p.sheet_index * (sheetW + gap);
-    const tx = sx + p.transform.x_mm;
-    const ty = p.transform.y_mm;
-    const rot = p.transform.rot_deg;
-    const w = p.shape.w_mm;
-    const h = p.shape.h_mm;
-
-    svg += `<g transform="translate(${{tx}}, ${{ty}}) rotate(${{rot}})" data-idx="${{idx}}">`;
-
-    // Kesish (panel) konturi — qizil
-    svg += `<rect class="panel-rect" x="0" y="0" width="${{w}}" height="${{h}}" `;
-    svg += `fill="rgba(220,38,38,0.06)" stroke="#dc2626" stroke-width="2.5" `;
-    svg += `data-pid="${{p.part_id}}" data-idx="${{idx}}"/>`;
-
-    // Banding — kesish kichikroqligi (sariq dashed)
-    const eb = p.edge_banding;
-    const cutW = w - (eb.left_mm || 0) - (eb.right_mm || 0);
-    const cutH = h - (eb.top_mm || 0) - (eb.bottom_mm || 0);
-    if (cutW < w || cutH < h) {{
-      svg += `<rect class="banding-rect" x="${{eb.left_mm || 0}}" y="${{eb.bottom_mm || 0}}" `;
-      svg += `width="${{cutW}}" height="${{cutH}}"/>`;
-    }}
-
-    // Teshiklar
-    p.operations.forEach(op => {{
-      const r = op.diameter_mm / 2;
-      const color = (PURPOSE_INFO[op.purpose] || PURPOSE_INFO.other).color;
-      svg += `<circle class="hole-marker" cx="${{op.x_mm}}" cy="${{op.y_mm}}" r="${{r}}" `;
-      svg += `fill="${{color}}" stroke="#1e293b" stroke-width="1"/>`;
-    }});
-
-    // Label (panel nomi va o'lchami) — markazda, biroz kichik
-    const labelY = h / 2;
-    const fs1 = Math.min(w / 12, 28);
-    const fs2 = Math.min(w / 18, 18);
-    const shortLabel = p.label.length > 22 ? p.label.substring(0, 22) + "…" : p.label;
-    svg += `<text class="panel-label" x="${{w / 2}}" y="${{labelY - 4}}" `;
-    svg += `text-anchor="middle" font-size="${{fs1}}" font-weight="600">${{escapeHtml(shortLabel)}}</text>`;
-    svg += `<text class="panel-label" x="${{w / 2}}" y="${{labelY + fs1 - 2}}" `;
-    svg += `text-anchor="middle" font-size="${{fs2}}" fill="#64748b">${{Math.round(w)}}×${{Math.round(h)}}mm</text>`;
-
-    svg += `</g>`;
+    const k = p.sheet_index;
+    (bySheet[k] || (bySheet[k] = [])).push({{ ...p, _idx: idx }});
   }});
 
-  svg += `</svg>`;
-  return svg;
+  let html = '';
+  for (let s = 0; s < numSheets; s++) {{
+    const placements = bySheet[s] || [];
+
+    html += `<div class="sheet-block">`;
+    html += `<div class="sheet-header">`;
+    html += `<span>📋 LIST ${{s + 1}} / ${{numSheets}}</span>`;
+    html += `<span class="sheet-meta">${{sheetW}} × ${{sheetH}} mm  ·  ${{placements.length}} panel  ·  LDSP 18mm</span>`;
+    html += `</div>`;
+
+    // Padding viewBox (tashqarida bo'sh joy)
+    const padding = 80;
+    const vbX = -padding;
+    const vbY = -padding;
+    const vbW = sheetW + 2 * padding;
+    const vbH = sheetH + 2 * padding;
+
+    html += `<svg class="sheet-svg" viewBox="${{vbX}} ${{vbY}} ${{vbW}} ${{vbH}}" `;
+    html += `preserveAspectRatio="xMidYMid meet">`;
+
+    // Outer Y-flip group: DXF style (Y=0 pastda)
+    html += `<g transform="translate(0, ${{sheetH}}) scale(1, -1)">`;
+
+    // List foni
+    html += `<rect class="sheet-bg" x="0" y="0" width="${{sheetW}}" height="${{sheetH}}"/>`;
+
+    // Panellar
+    placements.forEach(p => {{
+      const tx = p.transform.x_mm;
+      const ty = p.transform.y_mm;
+      const rot = p.transform.rot_deg;
+      const w = p.shape.w_mm;
+      const h = p.shape.h_mm;
+
+      html += `<g transform="translate(${{tx}}, ${{ty}}) rotate(${{rot}})" data-idx="${{p._idx}}">`;
+
+      // Kesish kontur (qizil)
+      html += `<rect class="panel-rect" x="0" y="0" width="${{w}}" height="${{h}}" `;
+      html += `fill="rgba(220,38,38,0.07)" stroke="#dc2626" stroke-width="3.5" `;
+      html += `data-pid="${{p.part_id}}" data-idx="${{p._idx}}"/>`;
+
+      // Banding offset (sariq dashed) — kesish chegarasidan ichkari
+      const eb = p.edge_banding;
+      const left = eb.left_mm || 0, right = eb.right_mm || 0;
+      const top = eb.top_mm || 0, bottom = eb.bottom_mm || 0;
+      if (left || right || top || bottom) {{
+        const cutW = w - left - right;
+        const cutH = h - top - bottom;
+        html += `<rect class="banding-rect" x="${{left}}" y="${{bottom}}" `;
+        html += `width="${{cutW}}" height="${{cutH}}"/>`;
+      }}
+
+      // Teshiklar
+      p.operations.forEach(op => {{
+        const r = op.diameter_mm / 2;
+        const color = (PURPOSE_INFO[op.purpose] || PURPOSE_INFO.other).color;
+        html += `<circle class="hole-marker" cx="${{op.x_mm}}" cy="${{op.y_mm}}" r="${{r}}" `;
+        html += `fill="${{color}}" stroke="#1e293b" stroke-width="1.5"/>`;
+      }});
+
+      // === Matnlar ===
+      // Y-flip ichida bo'lganligimiz uchun matnni QAYTA flip qilamiz (yuqoridan past o'qish uchun)
+      const fs1 = Math.max(22, Math.min(w / 11, 36));
+      const fs2 = Math.max(15, Math.min(w / 18, 22));
+      const shortLabel = p.label.length > 26 ? p.label.substring(0, 26) + "…" : p.label;
+      // Counter-flip: <g transform="translate(cx, cy) scale(1,-1)"> ichida text
+      const cx = w / 2;
+      const cy = h / 2;
+      html += `<g transform="translate(${{cx}}, ${{cy}}) scale(1, -1)">`;
+      html += `<text class="panel-label" x="0" y="${{-fs2 / 2}}" `;
+      html += `text-anchor="middle" font-size="${{fs1}}">${{escapeHtml(shortLabel)}}</text>`;
+      html += `<text class="panel-dim" x="0" y="${{fs1 - 4}}" `;
+      html += `text-anchor="middle" font-size="${{fs2}}">${{Math.round(w)}} × ${{Math.round(h)}} mm</text>`;
+      html += `</g>`;
+
+      html += `</g>`;
+    }});
+
+    html += `</g>`;  // /Y-flip group
+    html += `</svg>`;
+    html += `</div>`;  // /sheet-block
+  }}
+  return html;
 }}
 
 function escapeHtml(s) {{
@@ -996,7 +1034,8 @@ function setMode(mode) {{
     document.getElementById('scene-3d').style.display = 'none';
     const scene2d = document.getElementById('scene-2d');
     scene2d.style.display = 'block';
-    document.getElementById('legend-2d').style.display = 'block';
+    scene2d.classList.add('with-legend');
+    document.getElementById('legend-2d').style.display = 'flex';
     if (!view2DRendered) {{
       scene2d.innerHTML = render2DLayout();
       view2DRendered = true;
@@ -1009,11 +1048,11 @@ document.querySelectorAll('.vtoggle-btn').forEach(btn => {{
 }});
 
 function attach2DHandlers() {{
-  const svg = document.querySelector('#scene-2d svg');
-  if (!svg) return;
-  svg.querySelectorAll('.panel-rect').forEach(rect => {{
+  const allRects = document.querySelectorAll('#scene-2d .panel-rect');
+  allRects.forEach(rect => {{
     const idx = parseInt(rect.dataset.idx, 10);
     const p = LAYOUT_DATA.placements[idx];
+    if (!p) return;
 
     rect.addEventListener('mouseenter', e => showTooltip(panelTooltipHtml(p), e));
     rect.addEventListener('mousemove', e => {{
@@ -1022,7 +1061,8 @@ function attach2DHandlers() {{
     }});
     rect.addEventListener('mouseleave', hideTooltip);
     rect.addEventListener('click', () => {{
-      svg.querySelectorAll('.panel-rect.selected').forEach(r => r.classList.remove('selected'));
+      document.querySelectorAll('#scene-2d .panel-rect.selected')
+        .forEach(r => r.classList.remove('selected'));
       rect.classList.add('selected');
       showInfo(p);
     }});
