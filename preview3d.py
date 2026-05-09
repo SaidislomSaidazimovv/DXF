@@ -13,6 +13,7 @@ Xususiyatlar:
 import json
 import os
 from cabinet import CABINET_TYPE_DEFAULTS
+from project import build_project, layout_panels_simple
 
 
 SIDE_THICKNESS = 18
@@ -396,23 +397,98 @@ def _layout_kitchen(cabinets_config):
     }
 
 
+def _build_2d_layout_data(cabinets_config):
+    """Cutting plan (DXF kabi) uchun 2D layout ma'lumotlarini tayyorlaydi.
+
+    Har placement: panel'ning sheet'dagi joyi + transform + barcha operatsiyalar.
+    SVG renderer va info panel shu ma'lumotni ishlatadi.
+    """
+    panels, summary = build_project(cabinets_config)
+    layout = layout_panels_simple(panels)
+
+    # cabinet xulosalari (info panel uchun "tegishli kabinet" ma'lumoti)
+    cab_meta = {s["id"].lower(): s for s in summary}
+
+    placements_2d = []
+    for placement in layout["placements"]:
+        part = placement["part"]
+        transform = placement["transform"]
+
+        cabinet_id = ""
+        if "." in part.get("part_id", ""):
+            cabinet_id = part["part_id"].split(".", 1)[0]
+
+        # Faqat drill operatsiyalari (V1)
+        ops = []
+        for op in part.get("operations", []):
+            if op.get("type") != "drill":
+                continue
+            ops.append({
+                "x_mm": op["x_mm"],
+                "y_mm": op["y_mm"],
+                "diameter_mm": op["diameter_mm"],
+                "depth_mm": op.get("depth_mm", 0),
+                "purpose": op.get("purpose", "other"),
+                "face": op.get("face", "A"),
+            })
+
+        placements_2d.append({
+            "part_id": part.get("part_id", ""),
+            "label": part.get("label", ""),
+            "cabinet_id": cabinet_id,
+            "sheet_index": placement["sheet_index"],
+            "transform": {
+                "x_mm": transform["x_mm"],
+                "y_mm": transform["y_mm"],
+                "rot_deg": transform["rot_deg"],
+            },
+            "shape": {
+                "w_mm": part["shape"]["w_mm"],
+                "h_mm": part["shape"]["h_mm"],
+                "thickness_mm": part["shape"].get("thickness_mm", 18.0),
+            },
+            "material_id": part.get("material_id", ""),
+            "edge_banding": dict(part.get("edge_banding", {})),
+            "grain_locked": part.get("grain_locked", False),
+            "operations": ops,
+        })
+
+    return {
+        "sheet_w_mm": 2750.0,
+        "sheet_h_mm": 1830.0,
+        "sheet_gap_mm": 150.0,
+        "sheets_used": layout["sheets_used"],
+        "placements": placements_2d,
+        "cabinets_summary": [
+            {
+                "id": s["id"],
+                "type": s["type"],
+                "dimensions": s["dimensions"],
+                "panel_count": s["panel_count"],
+            } for s in summary
+        ],
+    }
+
+
 def generate_3d_preview(cabinets_config, project_id="demo", output_dir=None):
     scene_data = _layout_kitchen(cabinets_config)
+    layout_data = _build_2d_layout_data(cabinets_config)
 
     if output_dir is None:
         output_dir = f"output/project_{project_id}"
     os.makedirs(output_dir, exist_ok=True)
     html_path = os.path.join(output_dir, "3d_preview.html")
 
-    html = _render_html(scene_data, project_id)
+    html = _render_html(scene_data, layout_data, project_id)
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
 
     return html_path
 
 
-def _render_html(scene_data, project_id):
+def _render_html(scene_data, layout_data, project_id):
     scene_json = json.dumps(scene_data, ensure_ascii=False)
+    layout_json = json.dumps(layout_data, ensure_ascii=False)
     return f"""<!DOCTYPE html>
 <html lang="uz">
 <head>
@@ -456,10 +532,127 @@ def _render_html(scene_data, project_id):
   #help {{ bottom: 16px; right: 16px; font-size: 12px; color: #adb5bd; max-width: 240px; }}
   #help h2 {{ font-size: 13px; margin-bottom: 6px; color: #4dabf7; }}
   #help kbd {{ background: #444; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px; }}
+
+  /* === 3D / 2D toggle bar === */
+  #view-toggle {{
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 100; background: rgba(20,20,20,0.92); border-radius: 10px;
+    padding: 4px; display: flex; gap: 4px; border: 1px solid rgba(255,255,255,0.12);
+  }}
+  .vtoggle-btn {{
+    background: transparent; color: #ced4da; padding: 8px 16px;
+    font-size: 13px; font-weight: 600; border: none; border-radius: 6px;
+    cursor: pointer; transition: all 0.15s;
+  }}
+  .vtoggle-btn:hover {{ background: rgba(255,255,255,0.06); color: #fff; }}
+  .vtoggle-btn.active {{ background: #0066cc; color: #fff; }}
+
+  /* === 2D scene === */
+  #scene-2d {{
+    position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #f8fafc; overflow: auto; padding: 70px 20px 20px;
+  }}
+  #scene-2d svg {{ display: block; margin: 0 auto; user-select: none; }}
+  #scene-2d .panel-rect {{ cursor: pointer; transition: fill 0.1s; }}
+  #scene-2d .panel-rect:hover {{ fill: rgba(220,38,38,0.18) !important; }}
+  #scene-2d .panel-rect.selected {{ fill: rgba(59,130,246,0.22) !important; stroke: #1d4ed8 !important; stroke-width: 3 !important; }}
+  #scene-2d .sheet-rect {{ fill: #ffffff; stroke: #1e293b; stroke-width: 3; }}
+  #scene-2d .sheet-label {{ fill: #1e293b; font-family: 'Segoe UI', sans-serif; font-weight: 700; }}
+  #scene-2d .panel-label {{ fill: #0f172a; font-family: 'Segoe UI', sans-serif; pointer-events: none; }}
+  #scene-2d .hole-marker {{ pointer-events: none; }}
+  #scene-2d .banding-rect {{ fill: none; stroke: #b45309; stroke-width: 1; stroke-dasharray: 6 4; pointer-events: none; }}
+
+  /* 2D tooltip (hover) */
+  #tooltip-2d {{
+    position: fixed; z-index: 200; background: rgba(15,23,42,0.95);
+    color: #f8fafc; padding: 10px 12px; border-radius: 6px; font-size: 12px;
+    pointer-events: none; max-width: 280px; line-height: 1.4;
+    border: 1px solid rgba(77,171,247,0.4);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    display: none;
+  }}
+
+  /* 2D info panel (click) */
+  #info-2d {{
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    width: min(720px, 92vw); max-height: 50vh; overflow-y: auto;
+    background: rgba(15,23,42,0.96); color: #e2e8f0;
+    border: 1px solid rgba(77,171,247,0.35); padding: 0; z-index: 50;
+  }}
+  #info-2d-header {{
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: #4dabf7;
+  }}
+  #info-2d-close {{
+    background: transparent; color: #94a3b8; border: none; font-size: 18px;
+    cursor: pointer; padding: 0 6px;
+  }}
+  #info-2d-close:hover {{ color: #f87171; }}
+  #info-2d-content {{ padding: 14px 16px; font-size: 13px; line-height: 1.55; }}
+  #info-2d-content .field {{ margin-bottom: 6px; }}
+  #info-2d-content .field b {{ color: #4dabf7; display: inline-block; width: 130px; }}
+  #info-2d-content .ops-list {{ margin-top: 10px; padding-left: 0; list-style: none; }}
+  #info-2d-content .ops-list li {{
+    background: rgba(255,255,255,0.04); border-left: 3px solid; padding: 8px 12px;
+    margin-bottom: 6px; border-radius: 3px;
+  }}
+  #info-2d-content .ops-list li .op-title {{ font-weight: 600; color: #f8fafc; }}
+  #info-2d-content .ops-list li .op-why {{ color: #cbd5e1; margin-top: 4px; font-size: 12px; }}
+  #info-2d-content .ops-list li .op-coords {{ color: #94a3b8; font-size: 11px; font-family: monospace; }}
+
+  #legend-2d {{
+    top: 90px; left: 16px; max-width: 360px; background: rgba(15,23,42,0.94);
+    color: #e2e8f0; border: 1px solid rgba(77,171,247,0.3);
+  }}
+  #legend-2d h2 {{ color: #4dabf7; font-size: 13px; margin-bottom: 10px; }}
+  #legend-2d .leg-block {{ margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }}
+  #legend-2d .leg-block:last-child {{ border-bottom: none; }}
+  #legend-2d .leg-line {{ display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 12px; }}
+  #legend-2d .leg-sw {{ width: 28px; height: 16px; flex-shrink: 0; border-radius: 2px; }}
+  #legend-2d .leg-circle {{ width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }}
 </style>
 </head>
 <body>
 <div id="app">
+  <!-- 3D / 2D toggle ko'rinish -->
+  <div id="view-toggle">
+    <button class="vtoggle-btn active" data-mode="3d" type="button">🏗️ 3D yig'ilgan</button>
+    <button class="vtoggle-btn" data-mode="2d" type="button">📐 2D Cutting plan</button>
+  </div>
+
+  <!-- 2D scene konteyneri -->
+  <div id="scene-2d" style="display:none;"></div>
+
+  <!-- 2D click info panel (pastida) -->
+  <div id="info-2d" class="panel" style="display:none;">
+    <div id="info-2d-header">
+      <strong>📦 Tanlangan panel</strong>
+      <button id="info-2d-close" type="button">✕</button>
+    </div>
+    <div id="info-2d-content">Panelga sichqonchani olib boring yoki bossangiz ma'lumot ko'rinadi.</div>
+  </div>
+
+  <!-- 2D belgilar paneli (legend) -->
+  <div id="legend-2d" class="panel" style="display:none;">
+    <h2>📋 Belgilar tushuntirishi</h2>
+    <div class="leg-block">
+      <div class="leg-line"><span class="leg-sw" style="background:#fee2e2;border:2px solid #dc2626"></span><b>Qizil chiziq</b> — kesish chegarasi (CNC pichoq yo'li)</div>
+      <div class="leg-line"><span class="leg-sw" style="background:#fef3c7;border:1px dashed #b45309"></span><b>Sariq dashed</b> — banding ayirilgan, asl panel chegarasi</div>
+    </div>
+    <div class="leg-block">
+      <div class="leg-line"><span class="leg-circle" style="background:#22c55e"></span><b>35mm yashil</b> — petlya / chashka teshigi (Blum standarti)</div>
+      <div class="leg-line"><span class="leg-circle" style="background:#eab308"></span><b>8mm sariq</b> — konfirmat (Eurosrew, panel-panel ulash)</div>
+      <div class="leg-line"><span class="leg-circle" style="background:#a855f7"></span><b>5mm siyohrang</b> — polka shtifti</div>
+    </div>
+    <div class="leg-block">
+      <div class="leg-line"><span class="leg-sw" style="background:#fff;border:2px solid #1e293b"></span><b>Oq to'rtburchak</b> — LDSP listi (2750×1830mm)</div>
+    </div>
+  </div>
+
+  <!-- 3D scene konteyneri (canvas shu yerga joylashadi) -->
+  <div id="scene-3d">
+
   <div id="info" class="panel">
     <h1>🏭 {project_id}</h1>
     <div class="stats">
@@ -541,7 +734,12 @@ def _render_html(scene_data, project_id):
     <div><kbd>RMB</kbd> sudrang — surish</div>
     <div style="margin-top:6px;color:#22c55e;">💡 Korpus shaffofligini sliderdan o'zgartirib ichidagi teshik va detallarni ko'ring</div>
   </div>
-</div>
+
+  </div><!-- /#scene-3d -->
+</div><!-- /#app -->
+
+<!-- Hover tooltip (har 2 rejim uchun) -->
+<div id="tooltip-2d"></div>
 
 <script type="importmap">
 {{
@@ -557,6 +755,284 @@ import * as THREE from 'three';
 import {{ OrbitControls }} from 'three/addons/controls/OrbitControls.js';
 
 const SCENE_DATA = {scene_json};
+const LAYOUT_DATA = {layout_json};
+
+// =====================================================================
+// Operatsiya turlari uchun tushuntirishlar (purpose explanations)
+// =====================================================================
+const PURPOSE_INFO = {{
+  hinge: {{
+    title: "Petlya teshigi (35mm)",
+    color: "#22c55e",
+    why: "Eshikni yon panelga ulash uchun. Real petlya: yon paneldagi plate (mount) qismi shu yerga vintlar bilan biriktiriladi. Eshikning ichki yuzasidagi chashka bilan birgalikda harakatlanuvchi tugun hosil qiladi.",
+    connects: "Eshikning chashka teshigi bilan",
+    standard: "Blum / Hettich / GTV — 35mm Yevropa standarti (1971-yildan)",
+  }},
+  cup: {{
+    title: "Chashka teshigi (35mm, eshikda)",
+    color: "#22c55e",
+    why: "Petlya cup qismi shu yerga o'rnatiladi. Eshik ICHKI yuzasida (Face B), tashqaridan ko'rinmaydi. Eshik 18mm qalin → chashka 12.5mm chuqur.",
+    connects: "Yon paneldagi petlya teshigi bilan",
+    standard: "Blum 35mm",
+  }},
+  shelf_pin: {{
+    title: "Polka shtifti teshigi (5mm)",
+    color: "#a855f7",
+    why: "Polkani tutib turish uchun shtift kiritiladi. Yon panelning ichki yuzasida, oldingi va orqa chetlardan SHELF_PIN_INSET (37mm) ichkarida.",
+    connects: "Polkaning yon chetlari bilan (polka teshik kerak emas — shtiftga tayanadi)",
+    standard: "5mm — sanoat default",
+  }},
+  confirmat: {{
+    title: "Konfirmat teshigi (8mm)",
+    color: "#eab308",
+    why: "Eurosrew (konfirmat vint) bilan ust/past panelni yon panelga bog'lash uchun. Yon panel chetidan vint o'tib gorizontal panel ichidagi 8mm teshikka kiradi.",
+    connects: "Yon panel bilan",
+    standard: "Standart Euroscrew 7×50mm yoki 7×70mm",
+  }},
+  other: {{
+    title: "Boshqa teshik",
+    color: "#94a3b8",
+    why: "Maxsus operatsiya",
+    connects: "—",
+    standard: "—",
+  }},
+}};
+
+const MATERIAL_INFO = {{
+  ldsp_18_white: "ЛДСП 18мм белый — 2750×1830мм list",
+  ldsp_18_oak:   "ЛДСП 18мм дуб сонома — 2750×1830мм list",
+  mdf_16_white:  "МДФ 16мм белый — 2800×2070мм list",
+  hdf_4_back:    "ХДФ 4мм (orqa devor uchun) — 2800×2070мм list",
+  hdf_3_back:    "ХДФ 3мм (orqa devor uchun) — 2800×2070мм list",
+}};
+
+// =====================================================================
+// 2D SVG renderer (cutting plan / DXF kabi)
+// =====================================================================
+function render2DLayout() {{
+  const sheetW = LAYOUT_DATA.sheet_w_mm;
+  const sheetH = LAYOUT_DATA.sheet_h_mm;
+  const gap = LAYOUT_DATA.sheet_gap_mm;
+  const sheets = LAYOUT_DATA.sheets_used;
+
+  const totalW = sheets * sheetW + (sheets - 1) * gap;
+  const totalH = sheetH + 200;  // sarlavha matnlari uchun ustki bo'sh joy
+  const padding = 80;
+
+  const viewW = totalW + 2 * padding;
+  const viewH = totalH + 2 * padding;
+
+  // SVG ko'rinishi taxminan 90% ekranga moslashadi
+  const displayW = Math.min(window.innerWidth - 80, viewW * 0.55);
+
+  let svg = `<svg viewBox="${{-padding}} ${{-100}} ${{viewW}} ${{viewH}}" `;
+  svg += `width="${{displayW}}" preserveAspectRatio="xMidYMid meet">`;
+
+  // === Listlar ===
+  for (let s = 0; s < sheets; s++) {{
+    const sx = s * (sheetW + gap);
+    svg += `<rect class="sheet-rect" x="${{sx}}" y="0" width="${{sheetW}}" height="${{sheetH}}"/>`;
+    svg += `<text class="sheet-label" x="${{sx + 20}}" y="-30" font-size="48">LIST ${{s + 1}} / ${{sheets}}</text>`;
+    svg += `<text class="sheet-label" x="${{sx + sheetW - 20}}" y="-30" font-size="24" text-anchor="end" fill="#64748b">${{sheetW}} × ${{sheetH}} mm</text>`;
+  }}
+
+  // === Panellar ===
+  LAYOUT_DATA.placements.forEach((p, idx) => {{
+    const sx = p.sheet_index * (sheetW + gap);
+    const tx = sx + p.transform.x_mm;
+    const ty = p.transform.y_mm;
+    const rot = p.transform.rot_deg;
+    const w = p.shape.w_mm;
+    const h = p.shape.h_mm;
+
+    svg += `<g transform="translate(${{tx}}, ${{ty}}) rotate(${{rot}})" data-idx="${{idx}}">`;
+
+    // Kesish (panel) konturi — qizil
+    svg += `<rect class="panel-rect" x="0" y="0" width="${{w}}" height="${{h}}" `;
+    svg += `fill="rgba(220,38,38,0.06)" stroke="#dc2626" stroke-width="2.5" `;
+    svg += `data-pid="${{p.part_id}}" data-idx="${{idx}}"/>`;
+
+    // Banding — kesish kichikroqligi (sariq dashed)
+    const eb = p.edge_banding;
+    const cutW = w - (eb.left_mm || 0) - (eb.right_mm || 0);
+    const cutH = h - (eb.top_mm || 0) - (eb.bottom_mm || 0);
+    if (cutW < w || cutH < h) {{
+      svg += `<rect class="banding-rect" x="${{eb.left_mm || 0}}" y="${{eb.bottom_mm || 0}}" `;
+      svg += `width="${{cutW}}" height="${{cutH}}"/>`;
+    }}
+
+    // Teshiklar
+    p.operations.forEach(op => {{
+      const r = op.diameter_mm / 2;
+      const color = (PURPOSE_INFO[op.purpose] || PURPOSE_INFO.other).color;
+      svg += `<circle class="hole-marker" cx="${{op.x_mm}}" cy="${{op.y_mm}}" r="${{r}}" `;
+      svg += `fill="${{color}}" stroke="#1e293b" stroke-width="1"/>`;
+    }});
+
+    // Label (panel nomi va o'lchami) — markazda, biroz kichik
+    const labelY = h / 2;
+    const fs1 = Math.min(w / 12, 28);
+    const fs2 = Math.min(w / 18, 18);
+    const shortLabel = p.label.length > 22 ? p.label.substring(0, 22) + "…" : p.label;
+    svg += `<text class="panel-label" x="${{w / 2}}" y="${{labelY - 4}}" `;
+    svg += `text-anchor="middle" font-size="${{fs1}}" font-weight="600">${{escapeHtml(shortLabel)}}</text>`;
+    svg += `<text class="panel-label" x="${{w / 2}}" y="${{labelY + fs1 - 2}}" `;
+    svg += `text-anchor="middle" font-size="${{fs2}}" fill="#64748b">${{Math.round(w)}}×${{Math.round(h)}}mm</text>`;
+
+    svg += `</g>`;
+  }});
+
+  svg += `</svg>`;
+  return svg;
+}}
+
+function escapeHtml(s) {{
+  return String(s).replace(/[&<>"']/g, c =>
+    ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
+}}
+
+// =====================================================================
+// Tooltip va info panel
+// =====================================================================
+const tooltip = document.getElementById('tooltip-2d');
+
+function showTooltip(html, evt) {{
+  tooltip.innerHTML = html;
+  tooltip.style.display = 'block';
+  tooltip.style.left = (evt.clientX + 14) + 'px';
+  tooltip.style.top = (evt.clientY + 14) + 'px';
+}}
+function hideTooltip() {{ tooltip.style.display = 'none'; }}
+
+function panelTooltipHtml(p) {{
+  const opCounts = {{}};
+  p.operations.forEach(op => {{
+    opCounts[op.purpose] = (opCounts[op.purpose] || 0) + 1;
+  }});
+  const opLines = Object.entries(opCounts).map(([k, v]) => {{
+    const info = PURPOSE_INFO[k] || PURPOSE_INFO.other;
+    return `• ${{v}}× ${{info.title}}`;
+  }}).join('<br>');
+  return `<b style="color:#4dabf7">${{escapeHtml(p.label)}}</b><br>` +
+         `${{Math.round(p.shape.w_mm)}} × ${{Math.round(p.shape.h_mm)}} × ${{Math.round(p.shape.thickness_mm)}}mm<br>` +
+         `<span style="color:#94a3b8;font-size:11px">${{p.material_id || '—'}}</span>` +
+         (opLines ? `<hr style="border:0;border-top:1px solid rgba(255,255,255,0.15);margin:6px 0"/>${{opLines}}` : '') +
+         `<div style="margin-top:6px;color:#22c55e;font-size:11px">📌 Tafsilot uchun bossangiz</div>`;
+}}
+
+function showInfo(p) {{
+  const info = document.getElementById('info-2d-content');
+  document.getElementById('info-2d').style.display = 'block';
+
+  const cabSummary = LAYOUT_DATA.cabinets_summary.find(c => c.id.toLowerCase() === p.cabinet_id.toLowerCase());
+  const cabText = cabSummary
+    ? `${{cabSummary.id}} — ${{cabSummary.type}} kabinet (${{cabSummary.dimensions}}, ${{cabSummary.panel_count}} panel)`
+    : (p.cabinet_id || "—");
+
+  const eb = p.edge_banding;
+  const bandText = ['left_mm','right_mm','top_mm','bottom_mm']
+    .map(k => `${{k.replace('_mm','')}}: ${{eb[k] || 0}}mm`).join(', ');
+
+  // Operatsiyalar tushuntirishi (qaysi qaysi narsa uchun)
+  let opsHtml = '';
+  if (p.operations.length === 0) {{
+    opsHtml = '<div style="color:#64748b">Bu panelda teshik yo\\'q.</div>';
+  }} else {{
+    // Group by purpose
+    const groups = {{}};
+    p.operations.forEach(op => {{
+      groups[op.purpose] = groups[op.purpose] || [];
+      groups[op.purpose].push(op);
+    }});
+    opsHtml = '<ul class="ops-list">';
+    Object.entries(groups).forEach(([purpose, ops]) => {{
+      const inf = PURPOSE_INFO[purpose] || PURPOSE_INFO.other;
+      opsHtml += `<li style="border-left-color:${{inf.color}}">` +
+        `<div class="op-title">${{escapeHtml(inf.title)}} — ${{ops.length}} ta</div>` +
+        `<div class="op-why">${{escapeHtml(inf.why)}}</div>` +
+        `<div style="margin-top:4px;color:#fbbf24;font-size:11px">🔗 Bog'lanadi: ${{escapeHtml(inf.connects)}}</div>` +
+        `<div style="margin-top:2px;color:#94a3b8;font-size:11px">📐 Standart: ${{escapeHtml(inf.standard)}}</div>` +
+        `<div class="op-coords">Joylar: ${{ops.map(o => `(${{o.x_mm.toFixed(0)}}, ${{o.y_mm.toFixed(0)}}) Ø${{o.diameter_mm}}mm Z${{o.depth_mm}}mm Face ${{o.face}}`).join('; ')}}</div>` +
+        `</li>`;
+    }});
+    opsHtml += '</ul>';
+  }}
+
+  // Bog'liq panellar (bir kabinetdagi boshqalar)
+  const sameCab = LAYOUT_DATA.placements
+    .filter(x => x.cabinet_id === p.cabinet_id && x.part_id !== p.part_id)
+    .map(x => x.part_id.split('.')[1] || x.part_id);
+  const relText = sameCab.length ? sameCab.join(', ') : '—';
+
+  info.innerHTML =
+    `<div class="field"><b>part_id:</b> <code>${{escapeHtml(p.part_id)}}</code></div>` +
+    `<div class="field"><b>Tegishli kabinet:</b> ${{escapeHtml(cabText)}}</div>` +
+    `<div class="field"><b>Bog'liq panellar:</b> ${{escapeHtml(relText)}}</div>` +
+    `<div class="field"><b>Material:</b> ${{escapeHtml(p.material_id)}} ` +
+       `<span style="color:#94a3b8">(${{escapeHtml(MATERIAL_INFO[p.material_id] || '')}})</span></div>` +
+    `<div class="field"><b>Yakuniy o'lcham:</b> ${{p.shape.w_mm}} × ${{p.shape.h_mm}} × ${{p.shape.thickness_mm}}mm</div>` +
+    `<div class="field"><b>Edge banding:</b> ${{bandText}}</div>` +
+    `<div class="field"><b>Grain locked:</b> ${{p.grain_locked ? 'ha — vertical grain saqlanishi shart' : 'yo\\'q'}}</div>` +
+    `<div class="field"><b>Joylashish:</b> List ${{p.sheet_index + 1}}, x=${{p.transform.x_mm.toFixed(0)}}mm, y=${{p.transform.y_mm.toFixed(0)}}mm, rot=${{p.transform.rot_deg}}°</div>` +
+    `<hr style="border:0;border-top:1px solid rgba(255,255,255,0.1);margin:12px 0"/>` +
+    `<div style="margin-bottom:6px"><b>Operatsiyalar va sabablar:</b></div>` +
+    opsHtml;
+}}
+
+// =====================================================================
+// Toggle 3D / 2D
+// =====================================================================
+let view2DRendered = false;
+function setMode(mode) {{
+  document.querySelectorAll('.vtoggle-btn').forEach(b => {{
+    b.classList.toggle('active', b.dataset.mode === mode);
+  }});
+  if (mode === '3d') {{
+    document.getElementById('scene-3d').style.display = 'block';
+    document.getElementById('scene-2d').style.display = 'none';
+    document.getElementById('legend-2d').style.display = 'none';
+    document.getElementById('info-2d').style.display = 'none';
+  }} else {{
+    document.getElementById('scene-3d').style.display = 'none';
+    const scene2d = document.getElementById('scene-2d');
+    scene2d.style.display = 'block';
+    document.getElementById('legend-2d').style.display = 'block';
+    if (!view2DRendered) {{
+      scene2d.innerHTML = render2DLayout();
+      view2DRendered = true;
+      attach2DHandlers();
+    }}
+  }}
+}}
+document.querySelectorAll('.vtoggle-btn').forEach(btn => {{
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+}});
+
+function attach2DHandlers() {{
+  const svg = document.querySelector('#scene-2d svg');
+  if (!svg) return;
+  svg.querySelectorAll('.panel-rect').forEach(rect => {{
+    const idx = parseInt(rect.dataset.idx, 10);
+    const p = LAYOUT_DATA.placements[idx];
+
+    rect.addEventListener('mouseenter', e => showTooltip(panelTooltipHtml(p), e));
+    rect.addEventListener('mousemove', e => {{
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY + 14) + 'px';
+    }});
+    rect.addEventListener('mouseleave', hideTooltip);
+    rect.addEventListener('click', () => {{
+      svg.querySelectorAll('.panel-rect.selected').forEach(r => r.classList.remove('selected'));
+      rect.classList.add('selected');
+      showInfo(p);
+    }});
+  }});
+}}
+
+document.getElementById('info-2d-close').addEventListener('click', () => {{
+  document.getElementById('info-2d').style.display = 'none';
+  document.querySelectorAll('#scene-2d .panel-rect.selected').forEach(r => r.classList.remove('selected'));
+}});
 
 // === Scene setup ===
 const scene = new THREE.Scene();
