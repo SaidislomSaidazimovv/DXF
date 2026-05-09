@@ -1,0 +1,52 @@
+{
+  "_comment": "Fixture 05 — TRANSFORM MATEMATIKASI. Bitta drill known local koordinatda. 4 ta rotation va offset uchun qo'lda hisoblangan global koordinatalar. Bu fixture eng kritik: agar generator transformani noto'g'ri qo'llasa, butun pipeline buziladi. CONVENTIONS.md §3 formulalariga muvofiq.",
+  "_contract": "part.schema.json v1.0.0 + transform.schema.json v1.0.0",
+  "part": {
+    "part_id": "TEST.transform_subject",
+    "label": "Transform test panel",
+    "shape": { "w_mm": 720.0, "h_mm": 580.0, "thickness_mm": 18.0 },
+    "material_id": "ldsp_18_white",
+    "edge_banding": { "left_mm": 0.0, "right_mm": 0.0, "top_mm": 0.0, "bottom_mm": 0.0 },
+    "grain_locked": false,
+    "operations": [
+      {
+        "type": "drill", "x_mm": 35.0, "y_mm": 100.0,
+        "diameter_mm": 5.0, "depth_mm": 13.0,
+        "face": "A", "purpose": "shelf_pin"
+      }
+    ]
+  },
+  "expected_global_drill_positions": [
+    {
+      "case": "rot=0, offset=(0,0)",
+      "transform": { "x_mm": 0.0, "y_mm": 0.0, "rot_deg": 0, "mirror": false },
+      "expected_global": { "x_mm": 35.0, "y_mm": 100.0 },
+      "formula": "x=x_local; y=y_local"
+    },
+    {
+      "case": "rot=90, offset=(0,0)",
+      "transform": { "x_mm": 0.0, "y_mm": 0.0, "rot_deg": 90, "mirror": false },
+      "expected_global": { "x_mm": 480.0, "y_mm": 35.0 },
+      "formula": "x = h - y_local = 580 - 100 = 480; y = x_local = 35"
+    },
+    {
+      "case": "rot=180, offset=(0,0)",
+      "transform": { "x_mm": 0.0, "y_mm": 0.0, "rot_deg": 180, "mirror": false },
+      "expected_global": { "x_mm": 685.0, "y_mm": 480.0 },
+      "formula": "x = w - x_local = 720 - 35 = 685; y = h - y_local = 580 - 100 = 480"
+    },
+    {
+      "case": "rot=270, offset=(0,0)",
+      "transform": { "x_mm": 0.0, "y_mm": 0.0, "rot_deg": 270, "mirror": false },
+      "expected_global": { "x_mm": 100.0, "y_mm": 685.0 },
+      "formula": "x = y_local = 100; y = w - x_local = 720 - 35 = 685"
+    },
+    {
+      "case": "rot=90, offset=(1000,500) — sheet placement",
+      "transform": { "x_mm": 1000.0, "y_mm": 500.0, "rot_deg": 90, "mirror": false },
+      "expected_global": { "x_mm": 1480.0, "y_mm": 535.0 },
+      "formula": "rot=90 then translate: (1000+480, 500+35) = (1480, 535)"
+    }
+  ],
+  "tolerance_mm": 0.05
+}

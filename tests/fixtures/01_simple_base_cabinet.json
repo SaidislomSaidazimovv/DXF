@@ -1,0 +1,20 @@
+{
+  "_comment": "Fixture 01 — single base cabinet, no door, no shelves. Simplest possible Part. Tests basic shape + material_id + empty operations.",
+  "_contract": "part.schema.json v1.0.0",
+  "part_id": "B1.chap_yon",
+  "label": "B1: Chap yon",
+  "shape": {
+    "w_mm": 600.0,
+    "h_mm": 820.0,
+    "thickness_mm": 18.0
+  },
+  "material_id": "ldsp_18_white",
+  "edge_banding": {
+    "left_mm":   0.0,
+    "right_mm":  2.0,
+    "top_mm":    2.0,
+    "bottom_mm": 0.0
+  },
+  "grain_locked": true,
+  "operations": []
+}

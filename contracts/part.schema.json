@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dxf-furniture.local/contracts/part.schema.json",
+  "title": "Part",
+  "description": "A single manufacturable panel. Owns its operations in part-local coordinates. See CONVENTIONS.md for coordinate system, banding, mirror, and units rules.",
+  "contract_version": "1.0.0",
+  "type": "object",
+  "required": ["part_id", "label", "shape", "material_id", "edge_banding", "operations"],
+  "additionalProperties": false,
+  "properties": {
+    "part_id": {
+      "type": "string",
+      "description": "Stable identifier, format '<cabinet_id>.<part_name>' (e.g. 'W1.chap_yon').",
+      "pattern": "^[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$"
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable label printed on the DXF (e.g. 'W1: Chap yon')."
+    },
+    "shape": {
+      "type": "object",
+      "description": "Final assembled panel size (what the customer/factory tracks). Cut size is derived by subtracting edge_banding at DXF draw time.",
+      "required": ["w_mm", "h_mm", "thickness_mm"],
+      "additionalProperties": false,
+      "properties": {
+        "w_mm":          { "type": "number", "minimum": 1.0, "maximum": 4000.0 },
+        "h_mm":          { "type": "number", "minimum": 1.0, "maximum": 4000.0 },
+        "thickness_mm":  { "type": "number", "minimum": 1.0, "maximum": 50.0 }
+      }
+    },
+    "material_id": {
+      "type": "string",
+      "description": "Foreign key into /data/materials.json. Never duplicate material data here.",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "edge_banding": {
+      "type": "object",
+      "description": "Banding thickness per edge in mm. 0 means no banding on that edge.",
+      "required": ["left_mm", "right_mm", "top_mm", "bottom_mm"],
+      "additionalProperties": false,
+      "properties": {
+        "left_mm":   { "type": "number", "minimum": 0.0, "maximum": 5.0 },
+        "right_mm":  { "type": "number", "minimum": 0.0, "maximum": 5.0 },
+        "top_mm":    { "type": "number", "minimum": 0.0, "maximum": 5.0 },
+        "bottom_mm": { "type": "number", "minimum": 0.0, "maximum": 5.0 }
+      }
+    },
+    "grain_locked": {
+      "type": "boolean",
+      "description": "If true, this part has a required grain axis and the Optimizer may not rotate it 90/270. If false, free rotation allowed.",
+      "default": false
+    },
+    "operations": {
+      "type": "array",
+      "description": "All machining operations in part-local coordinates. CNC sees only what is in this array.",
+      "items": { "$ref": "#/$defs/Operation" }
+    }
+  },
+  "$defs": {
+    "Operation": {
+      "type": "object",
+      "required": ["type"],
+      "oneOf": [
+        { "$ref": "#/$defs/DrillOp" }
+      ]
+    },
+    "DrillOp": {
+      "type": "object",
+      "required": ["type", "x_mm", "y_mm", "diameter_mm", "depth_mm", "face"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "drill" },
+        "x_mm": {
+          "type": "number",
+          "description": "X coordinate in part-local frame, origin at bottom-left of Face A."
+        },
+        "y_mm": {
+          "type": "number",
+          "description": "Y coordinate in part-local frame, origin at bottom-left of Face A."
+        },
+        "diameter_mm": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 50.0
+        },
+        "depth_mm": {
+          "type": "number",
+          "minimum": 0.1,
+          "description": "Drill depth from the face. Use thickness_mm for through-holes."
+        },
+        "face": {
+          "enum": ["A", "B"],
+          "description": "Which face is drilled into. Face A = visible/outward face; Face B = opposite."
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Optional human label (e.g. 'hinge', 'shelf_pin', 'confirmat', 'cup').",
+          "enum": ["hinge", "shelf_pin", "confirmat", "cup", "other"]
+        }
+      }
+    }
+  }
+}

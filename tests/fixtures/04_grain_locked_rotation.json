@@ -1,0 +1,42 @@
+{
+  "_comment": "Fixture 04 — grain_locked panel. Optimizer faqat 0/180 burilishlarni ko'rib chiqishi mumkin (90/270 grain ni buzadi). Material ldsp_18_white da grain='vertical', shu sababli panel'ning H o'qi gilam yo'nalishiga teng turishi shart.",
+  "_contract": "part.schema.json v1.0.0",
+  "part_id": "T1.chap_yon",
+  "label": "T1: Chap yon",
+  "shape": {
+    "w_mm": 600.0,
+    "h_mm": 2100.0,
+    "thickness_mm": 18.0
+  },
+  "material_id": "ldsp_18_oak",
+  "edge_banding": {
+    "left_mm":   0.0,
+    "right_mm":  2.0,
+    "top_mm":    2.0,
+    "bottom_mm": 2.0
+  },
+  "grain_locked": true,
+  "operations": [
+    {
+      "type": "drill", "x_mm": 565.0, "y_mm": 102.0,
+      "diameter_mm": 35.0, "depth_mm": 12.5,
+      "face": "A", "purpose": "hinge"
+    },
+    {
+      "type": "drill", "x_mm": 565.0, "y_mm": 949.0,
+      "diameter_mm": 35.0, "depth_mm": 12.5,
+      "face": "A", "purpose": "hinge"
+    },
+    {
+      "type": "drill", "x_mm": 565.0, "y_mm": 1151.0,
+      "diameter_mm": 35.0, "depth_mm": 12.5,
+      "face": "A", "purpose": "hinge"
+    },
+    {
+      "type": "drill", "x_mm": 565.0, "y_mm": 1998.0,
+      "diameter_mm": 35.0, "depth_mm": 12.5,
+      "face": "A", "purpose": "hinge"
+    }
+  ],
+  "_optimizer_constraint": "grain_locked=true + material.grain=vertical → allowed rot_deg ∈ {0, 180}"
+}

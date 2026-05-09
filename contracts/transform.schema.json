@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dxf-furniture.local/contracts/transform.schema.json",
+  "title": "Transform / Placement / CutLayout",
+  "description": "Optimizer output. A Transform is what gets applied to a Part to place it on a sheet. See CONVENTIONS.md §3 for application order.",
+  "contract_version": "1.0.0",
+  "$defs": {
+    "Transform": {
+      "type": "object",
+      "required": ["x_mm", "y_mm", "rot_deg", "mirror"],
+      "additionalProperties": false,
+      "properties": {
+        "x_mm": {
+          "type": "number",
+          "description": "Translate X in mm, applied after rotate."
+        },
+        "y_mm": {
+          "type": "number",
+          "description": "Translate Y in mm, applied after rotate."
+        },
+        "rot_deg": {
+          "enum": [0, 90, 180, 270],
+          "description": "Counter-clockwise rotation around part origin (0,0). V1 supports only 0/90/180/270."
+        },
+        "mirror": {
+          "type": "boolean",
+          "description": "Reserved for V2. V1 must always be false (mirror handled by Decomposer instead)."
+        }
+      }
+    },
+    "Placement": {
+      "type": "object",
+      "required": ["part_id", "sheet_index", "transform"],
+      "additionalProperties": false,
+      "properties": {
+        "part_id":     { "type": "string", "pattern": "^[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$" },
+        "sheet_index": { "type": "integer", "minimum": 0 },
+        "transform":   { "$ref": "#/$defs/Transform" }
+      }
+    },
+    "CutLayout": {
+      "type": "object",
+      "required": ["material_id", "sheet_w_mm", "sheet_h_mm", "sheets_used", "placements"],
+      "additionalProperties": false,
+      "properties": {
+        "material_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "sheet_w_mm":  { "type": "number", "minimum": 1.0 },
+        "sheet_h_mm":  { "type": "number", "minimum": 1.0 },
+        "sheets_used": { "type": "integer", "minimum": 1 },
+        "placements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Placement" }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/CutLayout" },
+    { "$ref": "#/$defs/Placement" },
+    { "$ref": "#/$defs/Transform" }
+  ]
+}

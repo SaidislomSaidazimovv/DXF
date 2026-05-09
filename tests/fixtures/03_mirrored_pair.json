@@ -1,0 +1,46 @@
+{
+  "_comment": "Fixture 03 — chap+ong yon panellari ko'zgu juftligi. Decomposer ikkalasini AYRO Part sifatida yaratgani uchun, ong_yon ning operations koordinatalari chap_yon dan KO'ZGUDA. Generator ko'zguni qayta hisoblamaydi. CONVENTIONS.md §5 ga muvofiq.",
+  "_contract": "part.schema.json v1.0.0",
+  "pair": [
+    {
+      "part_id": "W1.chap_yon",
+      "label": "W1: Chap yon",
+      "shape": { "w_mm": 320.0, "h_mm": 720.0, "thickness_mm": 18.0 },
+      "material_id": "ldsp_18_white",
+      "edge_banding": { "left_mm": 0.0, "right_mm": 2.0, "top_mm": 2.0, "bottom_mm": 2.0 },
+      "grain_locked": true,
+      "operations": [
+        {
+          "type": "drill", "x_mm": 285.0, "y_mm": 102.0,
+          "diameter_mm": 35.0, "depth_mm": 12.5,
+          "face": "A", "purpose": "hinge"
+        },
+        {
+          "type": "drill", "x_mm": 285.0, "y_mm": 618.0,
+          "diameter_mm": 35.0, "depth_mm": 12.5,
+          "face": "A", "purpose": "hinge"
+        }
+      ]
+    },
+    {
+      "part_id": "W1.ong_yon",
+      "label": "W1: O'ng yon",
+      "shape": { "w_mm": 320.0, "h_mm": 720.0, "thickness_mm": 18.0 },
+      "material_id": "ldsp_18_white",
+      "edge_banding": { "left_mm": 2.0, "right_mm": 0.0, "top_mm": 2.0, "bottom_mm": 2.0 },
+      "grain_locked": true,
+      "operations": [
+        {
+          "type": "drill", "x_mm": 35.0, "y_mm": 102.0,
+          "diameter_mm": 35.0, "depth_mm": 12.5,
+          "face": "A", "purpose": "hinge"
+        },
+        {
+          "type": "drill", "x_mm": 35.0, "y_mm": 618.0,
+          "diameter_mm": 35.0, "depth_mm": 12.5,
+          "face": "A", "purpose": "hinge"
+        }
+      ]
+    }
+  ]
+}

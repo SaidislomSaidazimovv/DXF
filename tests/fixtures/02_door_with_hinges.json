@@ -1,0 +1,39 @@
+{
+  "_comment": "Fixture 02 — door with 2 hinges = 4 cup holes (2 per hinge cup). Cup holes are on Face B (interior). Tests that operations[] holds the full hardware truth.",
+  "_contract": "part.schema.json v1.0.0",
+  "part_id": "W1.eshik",
+  "label": "W1: Eshik",
+  "shape": {
+    "w_mm": 596.0,
+    "h_mm": 716.0,
+    "thickness_mm": 18.0
+  },
+  "material_id": "ldsp_18_white",
+  "edge_banding": {
+    "left_mm":   2.0,
+    "right_mm":  2.0,
+    "top_mm":    2.0,
+    "bottom_mm": 2.0
+  },
+  "grain_locked": false,
+  "operations": [
+    {
+      "type": "drill",
+      "x_mm": 28.5,
+      "y_mm": 100.0,
+      "diameter_mm": 35.0,
+      "depth_mm": 12.5,
+      "face": "B",
+      "purpose": "cup"
+    },
+    {
+      "type": "drill",
+      "x_mm": 28.5,
+      "y_mm": 616.0,
+      "diameter_mm": 35.0,
+      "depth_mm": 12.5,
+      "face": "B",
+      "purpose": "cup"
+    }
+  ]
+}

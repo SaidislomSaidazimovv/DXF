@@ -1,0 +1,59 @@
+{
+  "_comment": "MaterialCatalog. Read by every module. Owned by no module. material_id is the foreign key referenced from Part.material_id. Prices/sizes are placeholders — replace with real factory data before production use.",
+  "_contract_version": "1.0.0",
+  "ldsp_18_white": {
+    "name": "ЛДСП 18мм белый",
+    "category": "ldsp",
+    "thickness_mm": 18.0,
+    "sheet_w_mm": 2750.0,
+    "sheet_h_mm": 1830.0,
+    "kerf_mm": 4.0,
+    "grain": "vertical",
+    "price_per_sheet_uzs": 420000,
+    "supplier_code": "TBD"
+  },
+  "ldsp_18_oak": {
+    "name": "ЛДСП 18мм дуб сонома",
+    "category": "ldsp",
+    "thickness_mm": 18.0,
+    "sheet_w_mm": 2750.0,
+    "sheet_h_mm": 1830.0,
+    "kerf_mm": 4.0,
+    "grain": "vertical",
+    "price_per_sheet_uzs": 480000,
+    "supplier_code": "TBD"
+  },
+  "mdf_16_white": {
+    "name": "МДФ 16мм белый",
+    "category": "mdf",
+    "thickness_mm": 16.0,
+    "sheet_w_mm": 2800.0,
+    "sheet_h_mm": 2070.0,
+    "kerf_mm": 3.5,
+    "grain": "none",
+    "price_per_sheet_uzs": 540000,
+    "supplier_code": "TBD"
+  },
+  "hdf_3_back": {
+    "name": "ХДФ 3мм (orqa devor)",
+    "category": "hdf",
+    "thickness_mm": 3.0,
+    "sheet_w_mm": 2800.0,
+    "sheet_h_mm": 2070.0,
+    "kerf_mm": 2.0,
+    "grain": "none",
+    "price_per_sheet_uzs": 95000,
+    "supplier_code": "TBD"
+  },
+  "hdf_4_back": {
+    "name": "ХДФ 4мм (orqa devor, qalin)",
+    "category": "hdf",
+    "thickness_mm": 4.0,
+    "sheet_w_mm": 2800.0,
+    "sheet_h_mm": 2070.0,
+    "kerf_mm": 2.0,
+    "grain": "none",
+    "price_per_sheet_uzs": 110000,
+    "supplier_code": "TBD"
+  }
+}
