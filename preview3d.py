@@ -27,6 +27,8 @@ COLOR_WOOD = "#d4a373"
 COLOR_DOOR = "#a87544"
 COLOR_BACK = "#8b6f47"
 COLOR_FLOOR = "#e9ecef"
+COLOR_COUNTERTOP = "#3e2723"  # to'q jigarrang ish stoli (worktop)
+COUNTERTOP_THICKNESS = 30      # mm — standart kuxnya stoli qalinligi
 
 # Teshik ranglari
 HOLE_HINGE = "#22c55e"      # 35mm petlya — yashil
@@ -263,6 +265,16 @@ def _build_panels_for_cabinet(cabinet_cfg):
                 "color": COLOR_WOOD,
                 "category": "body",
             })
+        # Countertop (ish stoli) — vizual, kesish chizmasiga kirmaydi.
+        # Real kuxnyada granit/akril/postformingdan yetkazib beruvchidan alohida.
+        # Base kabinet ustini yopiq ko'rsatish uchun 3D'ga qo'shamiz.
+        panels.append({
+            "name": "Countertop (vizual)",
+            "size": [width, COUNTERTOP_THICKNESS, depth],
+            "position": [0, height, 0],
+            "color": COLOR_COUNTERTOP,
+            "category": "countertop",
+        })
 
     # 5) Orqa devor
     panels.append({
@@ -865,7 +877,24 @@ function render2DLayout() {{
     // List foni
     html += `<rect class="sheet-bg" x="0" y="0" width="${{sheetW}}" height="${{sheetH}}"/>`;
 
-    // Panellar
+    // === 1-PASS: Panellar (shape + banding + holes) ===
+    // Rotation matrix dxf_generator.apply_transform bilan to'liq mos:
+    //   rot=0:    identity
+    //   rot=90:   matrix(0,1,-1,0,h,0)   → (x,y) → (h-y, x)
+    //   rot=180:  matrix(-1,0,0,-1,w,h)  → (x,y) → (w-x, h-y)
+    //   rot=270:  matrix(0,-1,1,0,0,w)   → (x,y) → (y, w-x)
+    // Bu matritsa har bir lokal nuqtani kabinet local koordinatdan
+    // sheet global koordinatga to'g'ri ko'chiradi (DXF generatori bilan teng).
+    function panelTransform(tx, ty, rot, w, h) {{
+      const t = `translate(${{tx}},${{ty}})`;
+      switch (rot % 360) {{
+        case 90:  return `${{t}} matrix(0,1,-1,0,${{h}},0)`;
+        case 180: return `${{t}} matrix(-1,0,0,-1,${{w}},${{h}})`;
+        case 270: return `${{t}} matrix(0,-1,1,0,0,${{w}})`;
+        default:  return t;
+      }}
+    }}
+
     placements.forEach(p => {{
       const tx = p.transform.x_mm;
       const ty = p.transform.y_mm;
@@ -873,22 +902,20 @@ function render2DLayout() {{
       const w = p.shape.w_mm;
       const h = p.shape.h_mm;
 
-      html += `<g transform="translate(${{tx}}, ${{ty}}) rotate(${{rot}})" data-idx="${{p._idx}}">`;
+      html += `<g transform="${{panelTransform(tx, ty, rot, w, h)}}" data-idx="${{p._idx}}">`;
 
       // Kesish kontur (qizil)
       html += `<rect class="panel-rect" x="0" y="0" width="${{w}}" height="${{h}}" `;
       html += `fill="rgba(220,38,38,0.07)" stroke="#dc2626" stroke-width="3.5" `;
       html += `data-pid="${{p.part_id}}" data-idx="${{p._idx}}"/>`;
 
-      // Banding offset (sariq dashed) — kesish chegarasidan ichkari
+      // Banding offset (sariq dashed)
       const eb = p.edge_banding;
       const left = eb.left_mm || 0, right = eb.right_mm || 0;
       const top = eb.top_mm || 0, bottom = eb.bottom_mm || 0;
       if (left || right || top || bottom) {{
-        const cutW = w - left - right;
-        const cutH = h - top - bottom;
         html += `<rect class="banding-rect" x="${{left}}" y="${{bottom}}" `;
-        html += `width="${{cutW}}" height="${{cutH}}"/>`;
+        html += `width="${{w - left - right}}" height="${{h - top - bottom}}"/>`;
       }}
 
       // Teshiklar
@@ -899,21 +926,31 @@ function render2DLayout() {{
         html += `fill="${{color}}" stroke="#1e293b" stroke-width="1.5"/>`;
       }});
 
-      // === Matnlar ===
-      // Y-flip ichida bo'lganligimiz uchun matnni QAYTA flip qilamiz (yuqoridan past o'qish uchun)
-      const fs1 = Math.max(22, Math.min(w / 11, 36));
-      const fs2 = Math.max(15, Math.min(w / 18, 22));
+      html += `</g>`;
+    }});
+
+    // === 2-PASS: Matnlar (alohida, har doim to'g'ri o'qilishi uchun) ===
+    // Burilgan panellar uchun ham matn upright bo'ladi.
+    placements.forEach(p => {{
+      const tx = p.transform.x_mm;
+      const ty = p.transform.y_mm;
+      const rot = p.transform.rot_deg;
+      const w = p.shape.w_mm;
+      const h = p.shape.h_mm;
+      // rot=90/270 da effective dimensions almashinadi (h × w)
+      const effW = (rot === 90 || rot === 270) ? h : w;
+      const effH = (rot === 90 || rot === 270) ? w : h;
+      const cx = tx + effW / 2;
+      const cy = ty + effH / 2;
+      const fs1 = Math.max(22, Math.min(effW / 11, 36));
+      const fs2 = Math.max(15, Math.min(effW / 18, 22));
       const shortLabel = p.label.length > 26 ? p.label.substring(0, 26) + "…" : p.label;
-      // Counter-flip: <g transform="translate(cx, cy) scale(1,-1)"> ichida text
-      const cx = w / 2;
-      const cy = h / 2;
-      html += `<g transform="translate(${{cx}}, ${{cy}}) scale(1, -1)">`;
+      // Y-flipped frame ichida — counter-flip qilamiz (text upright bo'lsin)
+      html += `<g class="panel-text" transform="translate(${{cx}}, ${{cy}}) scale(1, -1)">`;
       html += `<text class="panel-label" x="0" y="${{-fs2 / 2}}" `;
       html += `text-anchor="middle" font-size="${{fs1}}">${{escapeHtml(shortLabel)}}</text>`;
-      html += `<text class="panel-dim" x="0" y="${{fs1 - 4}}" `;
+      html += `<text class="panel-dim" x="0" y="${{fs1 - 2}}" `;
       html += `text-anchor="middle" font-size="${{fs2}}">${{Math.round(w)}} × ${{Math.round(h)}} mm</text>`;
-      html += `</g>`;
-
       html += `</g>`;
     }});
 
