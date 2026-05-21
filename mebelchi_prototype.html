@@ -425,6 +425,7 @@
       door_flat:'Гладкий', door_frame:'С рамкой', door_groove:'Фрезеровка',
       h_skoba:'Скоба 128мм', h_profil:'Профиль-ручка', h_knopka:'Ручка-кнопка',
       cab_base:'Шкаф с дверью', cab_drawer:'Шкаф с ящиками', cab_sink:'Шкаф под мойку',
+      cab_stove:'Шкаф под плиту', cab_fridge:'Холодильник',
       confirmQ:'Удалить этот шкаф?', cancel:'Отмена', del:'Удалить',
       removed:'Шкаф удалён', needOne:'Нужен хотя бы один шкаф',
       hintStart:'Тапни шкаф · свайп — варианты',
@@ -456,6 +457,7 @@
       door_flat:'Silliq', door_frame:'Ramkali', door_groove:'Frezerli',
       h_skoba:'Skoba 128mm', h_profil:'Profil tutqich', h_knopka:'Tugma tutqich',
       cab_base:'Eshikli shkaf', cab_drawer:'Tortmali shkaf', cab_sink:'Mojka shkafi',
+      cab_stove:'Plita shkafi', cab_fridge:'Muzlatgich',
       confirmQ:"Bu shkafni o'chirasizmi?", cancel:'Bekor', del:"O'chirish",
       removed:"Shkaf o'chirildi", needOne:'Kamida bitta shkaf kerak',
       hintStart:'Shkafni bosing · svayp — variantlar',
@@ -560,7 +562,7 @@
     { key:'tpl_compact',  cabs:[{w:0.5,t:'drawer'},{w:0.7,t:'sink'},{w:0.5,t:'stove'},{w:0.7,t:'drawer'}] }
   ];
   let templateIdx = 0;
-  const SWAP_CYCLE = ['base', 'drawer', 'sink'];
+  const SWAP_CYCLE = ['base', 'drawer', 'sink', 'stove', 'fridge'];
 
   let materialIdx = 0;
   function MAT() { return CATALOG.facades[materialIdx]; }
@@ -583,12 +585,44 @@
   const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  /* Realistik render — sRGB rang, kinematik tone-mapping, yumshoq soyalar */
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  /* Atrof-muhit xaritasi (procedural gradient) — yumshoq aks etish va IBL yorug'lik */
+  (function () {
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 128;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 128);
+    g.addColorStop(0.00, '#fff6e8');
+    g.addColorStop(0.45, '#efe9dc');
+    g.addColorStop(0.56, '#e4dccb');
+    g.addColorStop(1.00, '#8f8779');
+    x.fillStyle = g; x.fillRect(0, 0, 16, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromEquirectangular(tex).texture;
+    pmrem.dispose(); tex.dispose();
+  })();
 
   /* Lights — referenceable (Stage 6 warm lighting uchun) */
   const ambient = new THREE.AmbientLight(0xfff5e6, 0.6);
   scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xffeacc, 0.7);
   sun.position.set(2.5, 5, 3);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 22;
+  sun.shadow.camera.left = -4.5; sun.shadow.camera.right = 4.5;
+  sun.shadow.camera.top = 4.5;  sun.shadow.camera.bottom = -4.5;
+  sun.shadow.bias = -0.0009;
+  sun.shadow.radius = 4;
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0xc8d8ff, 0.25);
   fill.position.set(-3, 2, 2);
@@ -608,6 +642,7 @@
     new THREE.MeshStandardMaterial({ color: 0xe8e2d2, roughness: 1 })
   );
   floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
   scene.add(floor);
 
   const wall = new THREE.Mesh(
@@ -615,19 +650,59 @@
     new THREE.MeshStandardMaterial({ color: 0xddd6c5, roughness: 1 })
   );
   wall.position.set(0, 1.5, -0.62);
+  wall.receiveShadow = true;
   scene.add(wall);
 
   const highlightMat = new THREE.MeshStandardMaterial({ color: 0x1d6fb8, transparent: true, opacity: 0.16, roughness: 0.4 });
   const cabinetGroup = new THREE.Group();
   scene.add(cabinetGroup);
 
+  /* Dub Nebraska uchun procedural yog'och naqsh tekstura (tashqi fayl kerak emas) */
+  let _woodTex = null;
+  function woodTexture() {
+    if (_woodTex) return _woodTex;
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const x = c.getContext('2d');
+    x.fillStyle = '#b6a079'; x.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 80; i++) {
+      const bx = Math.random() * 512, dark = Math.random() < 0.5;
+      x.strokeStyle = dark ? 'rgba(86,74,55,0.28)' : 'rgba(214,200,170,0.30)';
+      x.lineWidth = 0.5 + Math.random() * 2.6;
+      x.beginPath();
+      for (let y = 0; y <= 512; y += 14) {
+        const xx = bx + Math.sin(y * 0.012 + i) * 7 + Math.sin(y * 0.06 + i * 2) * 2.5;
+        y === 0 ? x.moveTo(xx, y) : x.lineTo(xx, y);
+      }
+      x.stroke();
+    }
+    _woodTex = new THREE.CanvasTexture(c);
+    _woodTex.wrapS = _woodTex.wrapT = THREE.RepeatWrapping;
+    _woodTex.encoding = THREE.sRGBEncoding;
+    return _woodTex;
+  }
   function currentFacadeMat() {
     const m = MAT();
-    return new THREE.MeshStandardMaterial({ color: m.facade, roughness: m.isDark ? 0.5 : 0.55 });
+    const mat = new THREE.MeshStandardMaterial({
+      color: m.facade,
+      roughness: m.isDark ? 0.42 : (m.id === 'oak' ? 0.62 : 0.68),
+      metalness: 0.0,
+      envMapIntensity: m.isDark ? 0.6 : 0.34
+    });
+    if (m.id === 'oak') { mat.map = woodTexture(); mat.color.setHex(0xffffff); }
+    return mat;
   }
   function currentTopMat() {
     const m = MAT();
-    return new THREE.MeshStandardMaterial({ color: m.top, roughness: 0.35 });
+    return new THREE.MeshStandardMaterial({
+      color: m.top, roughness: 0.26, metalness: 0.12, envMapIntensity: 0.75
+    });
+  }
+  /* Muzlatgich — metall ko'rinish (fasad materialiga bog'liq emas) */
+  function fridgeMat() {
+    return new THREE.MeshStandardMaterial({
+      color: 0xd6d9dc, roughness: 0.22, metalness: 0.78, envMapIntensity: 1.0
+    });
   }
   function disposeGroup(g) { g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
 
@@ -650,7 +725,8 @@
     cabinets.forEach((cab, i) => {
       const g = new THREE.Group();
       const body = new THREE.Mesh(
-        new THREE.BoxGeometry(cab.w - 0.003, CABINET_H, CABINET_D), currentFacadeMat()
+        new THREE.BoxGeometry(cab.w - 0.003, CABINET_H, CABINET_D),
+        cab.t === 'fridge' ? fridgeMat() : currentFacadeMat()
       );
       body.position.set(x + cab.w / 2, PLINTH + CABINET_H / 2, -CABINET_D / 2 - 0.05);
       body.userData = { cabinetIndex: i, isCabinet: true };
@@ -664,17 +740,22 @@
           div.position.set(body.position.x, PLINTH + (CABINET_H * k / 3), body.position.z + CABINET_D / 2 + 0.001);
           g.add(div);
         }
+      } else if (cab.t === 'fridge') {
+        /* muzlatgich — gorizontal chok (muzxona / sovutgich bo'limi) */
+        const seam = new THREE.Mesh(new THREE.BoxGeometry(cab.w - 0.02, 0.005, 0.002), lineMat);
+        seam.position.set(body.position.x, PLINTH + CABINET_H * 0.64, body.position.z + CABINET_D / 2 + 0.001);
+        g.add(seam);
       } else if (cab.w > DOUBLE_DOOR_W) {
         const div = new THREE.Mesh(new THREE.BoxGeometry(0.003, CABINET_H - 0.03, 0.002), lineMat);
         div.position.set(body.position.x, body.position.y, body.position.z + CABINET_D / 2 + 0.001);
         g.add(div);
       }
 
-      if (cab.door === 'frame' && cab.t !== 'drawer') {
+      if (cab.door === 'frame' && cab.t !== 'drawer' && cab.t !== 'fridge') {
         const fr = new THREE.Mesh(new THREE.BoxGeometry(cab.w - 0.10, CABINET_H - 0.12, 0.003), lineMat);
         fr.position.set(body.position.x, body.position.y, body.position.z + CABINET_D / 2 + 0.0015);
         g.add(fr);
-      } else if (cab.door === 'groove' && cab.t !== 'drawer') {
+      } else if (cab.door === 'groove' && cab.t !== 'drawer' && cab.t !== 'fridge') {
         for (let k = 0; k < 3; k++) {
           const gr = new THREE.Mesh(new THREE.BoxGeometry(cab.w - 0.08, 0.004, 0.002), lineMat);
           gr.position.set(body.position.x, PLINTH + 0.2 + k * 0.18, body.position.z + CABINET_D / 2 + 0.0012);
@@ -689,6 +770,23 @@
         g.add(sink);
       }
 
+      if (cab.t === 'stove') {
+        /* plita — ish stoli ustida pishirish yuzasi + 4 ta konforka */
+        const ctW = Math.min(0.54, cab.w * 0.82), ctD = 0.40;
+        const cooktop = new THREE.Mesh(
+          new THREE.BoxGeometry(ctW, 0.014, ctD),
+          new THREE.MeshStandardMaterial({ color: 0x232321, roughness: 0.35, metalness: 0.3 })
+        );
+        cooktop.position.set(body.position.x, PLINTH + CABINET_H + 0.046, -CABINET_D / 2 - 0.04);
+        g.add(cooktop);
+        const burnerMat = new THREE.MeshStandardMaterial({ color: 0x4c4c47, roughness: 0.5, metalness: 0.4 });
+        [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
+          const burner = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.006, 18), burnerMat);
+          burner.position.set(body.position.x + sx * ctW * 0.24, PLINTH + CABINET_H + 0.056, -CABINET_D / 2 - 0.04 + sz * ctD * 0.22);
+          g.add(burner);
+        });
+      }
+
       const handleMat = new THREE.MeshStandardMaterial({ color: 0x2c2c2a, roughness: 0.3, metalness: 0.4 });
       const isKnob = cab.handle === 'knopka';
       if (cab.t === 'drawer') {
@@ -700,6 +798,11 @@
           hg.position.set(body.position.x, PLINTH + (CABINET_H * (k + 0.5) / 3) - 0.04, body.position.z + CABINET_D / 2 + 0.012);
           g.add(hg);
         }
+      } else if (cab.t === 'fridge') {
+        /* muzlatgich — uzun vertikal tutqich */
+        const hg = new THREE.Mesh(new THREE.BoxGeometry(0.016, CABINET_H * 0.52, 0.022), handleMat);
+        hg.position.set(body.position.x + cab.w / 2 - 0.055, PLINTH + CABINET_H * 0.56, body.position.z + CABINET_D / 2 + 0.014);
+        g.add(hg);
       } else {
         const hg = isKnob
           ? new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.018, 14), handleMat)
@@ -729,6 +832,12 @@
 
       cabinetGroup.add(g);
       x += cab.w;
+    });
+    /* Realistik soyalar — highlight'dan tashqari barcha mesh soya beradi/qabul qiladi */
+    cabinetGroup.traverse(o => {
+      if (o.isMesh && !(o.userData && o.userData.isHighlight)) {
+        o.castShadow = true; o.receiveShadow = true;
+      }
     });
     applyDetailFade();
   }
