@@ -1114,8 +1114,11 @@
   function computeEstimate() {
     const mat = MAT();
     const totalW = cabinets.reduce((s, c) => s + c.w, 0);
+    /* Muzlatgich — texnika (sotib olinadi, kesilmaydi): smeta/panel hisobidan chiqariladi.
+       Devor uzunligiga (totalW) esa kiradi — joy egallaydi. */
+    const buildable = cabinets.filter(c => c.t !== 'fridge');
     let facadeArea = 0, bodyArea = 0;
-    cabinets.forEach(c => {
+    buildable.forEach(c => {
       facadeArea += c.w * CABINET_H;
       bodyArea   += 2 * (CABINET_D * CABINET_H);
       bodyArea   += 2 * (c.w * CABINET_D);
@@ -1129,7 +1132,7 @@
     const hinge = CATALOG.hinges[budgetTier];
     const slide = CATALOG.slides[budgetTier];
     let doorCount = 0, drawerBoxes = 0;
-    cabinets.forEach(c => {
+    buildable.forEach(c => {
       if (c.t === 'drawer') drawerBoxes += 3;
       else doorCount += (c.w > DOUBLE_DOOR_W ? 2 : 1);
     });
@@ -1139,23 +1142,23 @@
     const slideCost = slideSets * slide.price;
 
     let handleCost = 0, handleCount = 0;
-    cabinets.forEach(c => {
+    buildable.forEach(c => {
       const h = CATALOG.handles.find(x => x.id === c.handle) || CATALOG.handles[0];
       const cnt = (c.t === 'drawer') ? 3 : (c.w > DOUBLE_DOOR_W ? 2 : 1);
       handleCount += cnt;
       handleCost += cnt * h.price;
     });
 
-    const shelfPinCount = cabinets.length * 4;
+    const shelfPinCount = buildable.length * 4;
     const shelfPinCost = shelfPinCount * CATALOG.misc.shelfPin.price;
-    const minifixCount = cabinets.length * 6;
+    const minifixCount = buildable.length * 6;
     const minifixCost = minifixCount * CATALOG.misc.minifix.price;
     const kromkaMeters = facadeArea > 0 ? Math.round((facadeArea * 3.4) * 10) / 10 : 0;
     const kromkaCost = Math.round(kromkaMeters * CATALOG.misc.kromkaM.price);
 
     const total = materialCost + hingeCost + slideCost + handleCost + shelfPinCost + minifixCost + kromkaCost;
     let parts = 0;
-    cabinets.forEach(c => { parts += 6 + 1 + (c.t === 'drawer' ? 3 : (c.w > DOUBLE_DOOR_W ? 2 : 1)); });
+    buildable.forEach(c => { parts += 6 + 1 + (c.t === 'drawer' ? 3 : (c.w > DOUBLE_DOOR_W ? 2 : 1)); });
 
     return {
       mat, totalW, sheets, materialCost,
@@ -1362,6 +1365,7 @@
   function collectPanels() {
     const panels = [];
     cabinets.forEach((cab, ci) => {
+      if (cab.t === 'fridge') return;   /* muzlatgich — texnika, kesilmaydi (panel yo'q) */
       const W = Math.round(cab.w * 1000), H = 850, D = 560, t = MAT().thickness, k = 'K' + (ci + 1);
       panels.push([D, H, k + ' Yon-L'], [D, H, k + ' Yon-R']);
       panels.push([W - 2*t, D, k + ' Tag'], [W - 2*t, D, k + ' Tepa']);
