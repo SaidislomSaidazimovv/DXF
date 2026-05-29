@@ -1,20 +1,14 @@
 /**
  * DrawerStack — realistic 3D drawer fronts for a base cabinet.
  *
- * Replaces the old "thin divider lines" look. Each drawer is a real
- * recessed front panel with:
- *   • a physical reveal GAP between drawers (not a drawn line)
- *   • a slight inward bevel so the panel reads as a separate box
- *   • its own handle (bar / knob / inset) via the shared <Handle>
- *   • a faint top "lip" highlight for depth
+ * Each drawer is a real front panel standing PROUD of the carcass, with a
+ * recessed shadow groove between drawers (a dark plane set back in the gap)
+ * so the divisions read as real reveals — not painted-on flat lines.
  *
- * Heights are NON-uniform (shallow top, deep bottom) using DRAWER_FRACTIONS,
- * matching how real kitchen bases are built.
+ * Heights are NON-uniform (shallow top, deep bottom) via DRAWER_FRACTIONS.
  *
- * Interaction:
- *   • tap a drawer (cabinet not selected) → select the cabinet
- *   • tap again (selected) → onCycleCount (2 → 3 → 4 → 2), so the look
- *     visibly changes — this is the "tapping changes the drawers" behaviour.
+ * Tapping a drawer just SELECTS the cabinet — the drawer count is changed
+ * from the selection pill, never by tapping (so a stray tap can't alter it).
  */
 import React from 'react';
 import type { ThreeEvent } from '@/lib/three/r3f';
@@ -34,24 +28,20 @@ interface Props {
   lineCol: number;
   accent: number;
   handle: HandleType;
-  isSelected: boolean;
   onSelect: () => void;
-  onCycleCount: () => void;
 }
 
-const GAP = 0.008;             // reveal gap between drawer fronts (m)
-const PANEL_T = 0.018;         // drawer-front thickness (m)
+const GAP = 0.012;             // reveal gap between drawer fronts (m)
+const PANEL_T = 0.02;          // drawer-front thickness — stands proud (m)
+const GROOVE_COLOR = 0x1a1816; // dark recess seen in the gap
 
 export function DrawerStack({
   count,
   bodyW,
   facadeColor,
-  lineCol,
   accent,
   handle,
-  isSelected,
   onSelect,
-  onCycleCount,
 }: Props) {
   const fractions = DRAWER_FRACTIONS[count] ?? DRAWER_FRACTIONS[3];
   const frontW = bodyW - 0.006;
@@ -59,39 +49,30 @@ export function DrawerStack({
 
   const press = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (isSelected) onCycleCount();
-    else onSelect();
+    onSelect();
   };
 
-  /* Walk up from the bottom, placing each drawer front. */
   let cursorY = baseY;
   const drawers = fractions.map((frac, i) => {
     const slotH = CABINET_HEIGHT * frac;
     const frontH = slotH - GAP;
     const cy = cursorY + slotH / 2;
     cursorY += slotH;
-
-    /* Handle sits centred near the TOP of each drawer front. */
-    const handleY = cy + frontH / 2 - 0.045;
+    const handleY = cy + frontH / 2 - 0.05;
 
     return (
       <group key={i}>
-        {/* Drawer front panel — slightly proud of the carcass */}
+        {/* Recessed dark groove behind the gap below this drawer — set back
+            so the reveal reads as a real shadowed recess, not a line. */}
+        <mesh position={[0, cy - frontH / 2 - GAP / 2, FRONT - 0.006]}>
+          <boxGeometry args={[frontW, GAP + 0.004, 0.004]} />
+          <meshStandardMaterial color={GROOVE_COLOR} roughness={0.9} />
+        </mesh>
+
+        {/* Drawer front panel — proud of the carcass, slightly bevelled feel */}
         <mesh position={[0, cy, FRONT]} onClick={press}>
           <boxGeometry args={[frontW, frontH, PANEL_T]} />
-          <meshStandardMaterial color={facadeColor} roughness={0.62} />
-        </mesh>
-
-        {/* Top lip highlight — a thin lighter strip catching light */}
-        <mesh position={[0, cy + frontH / 2 - 0.004, FRONT + PANEL_T / 2 + 0.001]}>
-          <boxGeometry args={[frontW - 0.01, 0.004, 0.002]} />
-          <meshStandardMaterial color={lineCol} transparent opacity={0.18} />
-        </mesh>
-
-        {/* Bottom shadow line of the front (reveal depth cue) */}
-        <mesh position={[0, cy - frontH / 2 + 0.003, FRONT + PANEL_T / 2 + 0.001]}>
-          <boxGeometry args={[frontW - 0.01, 0.003, 0.002]} />
-          <meshStandardMaterial color={0x000000} transparent opacity={0.12} />
+          <meshStandardMaterial color={facadeColor} roughness={0.6} />
         </mesh>
 
         {/* Per-drawer handle (horizontal) */}
@@ -103,7 +84,7 @@ export function DrawerStack({
           panelWidth={frontW}
           orientation="horizontal"
           accent={accent}
-          onPress={isSelected ? onCycleCount : onSelect}
+          onPress={onSelect}
         />
       </group>
     );

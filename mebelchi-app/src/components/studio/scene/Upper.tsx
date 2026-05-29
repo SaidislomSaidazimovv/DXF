@@ -47,16 +47,12 @@ export function Upper({
   const frontZ = UPPER_DEPTH / 2;
   const isWide = bodyW > DOUBLE_DOOR_W;
 
-  /* Body click: front face when selected → cycle handle; otherwise select. */
+  /* Tapping an upper just selects it — handle/colour are changed in the pill. */
   const onBodyClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (isSelected && onCycleHandle) onCycleHandle();
-    else onSelect?.();
+    onSelect?.();
   };
-  const handlePress = () => {
-    if (isSelected && onCycleHandle) onCycleHandle();
-    else onSelect?.();
-  };
+  const handlePress = () => onSelect?.();
 
   return (
     <group position={[position[0], 0, upperCenterZ]}>

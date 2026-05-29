@@ -28,6 +28,7 @@ export function CameraRig() {
   const { camera } = useThree();
   const selectedId = useUI((s) => s.selectedCabinetId);
   const selectedUpperId = useUI((s) => s.selectedUpperId);
+  const selectedDetail = useUI((s) => s.selectedDetail);
   const variant = useUI(selectCurrentVariant);
   const viewMode = useUI((s) => s.viewMode);
   const wallMm = useUI((s) => s.wallLengthMm);
@@ -90,6 +91,26 @@ export function CameraRig() {
             placed.cab.width
           )
         : OVERVIEW_TARGET;
+    } else if (selectedDetail && selectedId) {
+      /* Zoom to a specific fixture (faucet / stove / sink) ON the worktop —
+         not the cabinet box. Aim at worktop height (faucet a bit higher) and
+         pass a small effective width so the camera moves in close. */
+      camera.up.set(0, 1, 0);
+      const placed = findPlaced(variant, selectedId);
+      if (placed) {
+        const worktopY =
+          GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS;
+        const detailY = selectedDetail === 'faucet' ? worktopY + 0.16 : worktopY + 0.04;
+        /* faucet sits toward the back of the worktop; sink/stove centred-ish */
+        const detailZ =
+          placed.groupPosition[2] - (selectedDetail === 'faucet' ? GEOMETRY.CABINET_DEPTH * 0.18 : 0);
+        target = computeCabinetCameraTarget(
+          [placed.groupPosition[0], detailY, detailZ],
+          0.34 // tight effective width → closer zoom than the whole cabinet
+        );
+      } else {
+        target = OVERVIEW_TARGET;
+      }
     } else {
       camera.up.set(0, 1, 0);
       if (!selectedId) {
@@ -114,7 +135,7 @@ export function CameraRig() {
     startTime.current = performance.now();
     duration.current = target.duration;
     tweening.current = true;
-  }, [selectedId, selectedUpperId, viewMode, variant, wallMm, heroMode, camera]);
+  }, [selectedId, selectedUpperId, selectedDetail, viewMode, variant, wallMm, heroMode, camera]);
 
   /* Per-frame lerp + hero turntable */
   useFrame(() => {

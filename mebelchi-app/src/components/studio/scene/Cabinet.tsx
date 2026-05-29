@@ -43,13 +43,10 @@ interface Props {
   faucetFinish: FaucetFinish;
   burners: BurnerCount;
   isSelected: boolean;
+  /** Tap a cabinet → just select it (no auto-change; edits happen in the pill). */
   onSelect: () => void;
-  onCycleDoor: () => void;
-  onCycleHandle: () => void;
-  onCycleSink: () => void;
-  onCycleStove: () => void;
-  onCycleFaucet: () => void;
-  onCycleDrawer: () => void;
+  /** Tap a fixture → select the cabinet AND zoom to that fixture. */
+  onFocusDetail: (detail: 'faucet' | 'stove' | 'sink') => void;
 }
 
 const { CABINET_HEIGHT, CABINET_DEPTH, PLINTH_HEIGHT, TALL_HEIGHT, WORKTOP_THICKNESS } = GEOMETRY;
@@ -427,8 +424,6 @@ function SinkFront({
   accent,
   handle,
   onSelect,
-  onCycleDoor,
-  onCycleHandle,
 }: {
   bodyW: number;
   bodyHeight: number;
@@ -438,8 +433,6 @@ function SinkFront({
   accent: number;
   handle: HandleType;
   onSelect: () => void;
-  onCycleDoor: () => void;
-  onCycleHandle: () => void;
 }) {
   const fakeH = 0.13;                                     // false-drawer panel height
   const fakeY = bodyY + bodyHeight / 2 - fakeH / 2 - 0.003;
@@ -447,7 +440,7 @@ function SinkFront({
   const doorY = fakeY - fakeH / 2 - doorH / 2 - 0.005;
   const doorW = bodyW / 2 - 0.003;
   const press = stopAnd(onSelect);
-  const cyclePress = stopAnd(onCycleDoor);
+  const cyclePress = press;   // tapping any sub-panel just selects
 
   return (
     <group>
@@ -484,7 +477,7 @@ function SinkFront({
         bodyHeight={doorH}
         doorWidth={doorW}
         type={handle}
-        onPress={onCycleHandle}
+        onPress={onSelect}
         accent={accent}
       />
       <DoorHandle
@@ -493,7 +486,7 @@ function SinkFront({
         bodyHeight={doorH}
         doorWidth={doorW}
         type={handle}
-        onPress={onCycleHandle}
+        onPress={onSelect}
         accent={accent}
       />
 
@@ -521,12 +514,7 @@ export function Cabinet({
   faucetFinish,
   burners,
   onSelect,
-  onCycleDoor,
-  onCycleHandle,
-  onCycleSink,
-  onCycleStove,
-  onCycleFaucet,
-  onCycleDrawer,
+  onFocusDetail,
 }: Props) {
   const isTall = cabinet.type === 'tall' || cabinet.type === 'fridge';
   const isFridge = cabinet.type === 'fridge';
@@ -570,37 +558,18 @@ export function Cabinet({
   const accent = isFridge ? 0x2c2c2a : accentForFacade(facadeColor);
   const lineCol = isFridge ? 0x000000 : lineForFacade(facadeColor);
 
-  // Body click: route via face normal — front face = door region, else = body
+  // Tapping any part of the cabinet body / door / handle just SELECTS it.
+  // All changes are made from the selection pill — tapping never mutates.
   const onBodyClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    const nz = e.face?.normal.z ?? 0;
-    if (nz > 0.9 && hasDoor && isSelected) {
-      onCycleDoor();
-    } else {
-      onSelect();
-    }
+    onSelect();
   };
+  const onHandlePress = () => onSelect();
 
-  // Handle click — same routing as door
-  const onHandlePress = () => {
-    if (isSelected) onCycleHandle();
-    else onSelect();
-  };
-
-  // Sink / stove / faucet — first tap selects the cabinet (camera flies in
-  // + pill rises); subsequent taps on the same fixture cycle its type.
-  const onSinkPress = () => {
-    if (isSelected) onCycleSink();
-    else onSelect();
-  };
-  const onStovePress = () => {
-    if (isSelected) onCycleStove();
-    else onSelect();
-  };
-  const onFaucetPress = () => {
-    if (isSelected) onCycleFaucet();
-    else onSelect();
-  };
+  // Fixtures select the cabinet AND zoom the camera to that fixture.
+  const onSinkPress = () => onFocusDetail('sink');
+  const onStovePress = () => onFocusDetail('stove');
+  const onFaucetPress = () => onFocusDetail('faucet');
 
   // Door handles per door
   const doorHandles: React.ReactNode = isDrawer || isFridge
@@ -709,9 +678,7 @@ export function Cabinet({
           lineCol={lineCol}
           accent={accent}
           handle={handle}
-          isSelected={isSelected}
           onSelect={onSelect}
-          onCycleCount={onCycleDrawer}
         />
       )}
 
@@ -757,8 +724,6 @@ export function Cabinet({
           accent={accent}
           handle={handle}
           onSelect={onSelect}
-          onCycleDoor={onCycleDoor}
-          onCycleHandle={onHandlePress}
         />
       )}
 
@@ -776,8 +741,6 @@ export function Cabinet({
               accent={accent}
               handle={handle}
               onSelect={onSelect}
-              onCycleDoor={onCycleDoor}
-              onCycleHandle={onHandlePress}
             />
           </group>
           <group position={[+bodyW / 4, 0, 0]}>

@@ -36,14 +36,8 @@ export function Kitchen() {
   /* Actions — store references are stable; no re-renders on action access */
   const selectCabinet = useUI((s) => s.selectCabinet);
   const selectUpper = useUI((s) => s.selectUpper);
-  const cycleDoorStyle = useUI((s) => s.cycleDoorStyle);
-  const cycleHandle = useUI((s) => s.cycleHandle);
-  const cycleUpperHandle = useUI((s) => s.cycleUpperHandle);
-  const cycleSink = useUI((s) => s.cycleSink);
-  const cycleStove = useUI((s) => s.cycleStove);
-  const cycleFaucet = useUI((s) => s.cycleFaucet);
+  const focusDetail = useUI((s) => s.focusDetail);
   const cycleWorktop = useUI((s) => s.cycleWorktop);
-  const cycleDrawer = useUI((s) => s.cycleCabinetDrawerCount);
 
   const mat = materialById(globalMat);
 
@@ -96,12 +90,7 @@ export function Kitchen() {
             burners={cabinetBurners[p.cab.id] ?? 4}
             isSelected={selectedId === p.cab.id}
             onSelect={() => { hapticTap(); selectCabinet(p.cab.id); }}
-            onCycleDoor={() => { hapticTap(); cycleDoorStyle(p.cab.id); }}
-            onCycleHandle={() => { hapticTap(); cycleHandle(p.cab.id); }}
-            onCycleSink={() => { hapticTap(); cycleSink(p.cab.id); }}
-            onCycleStove={() => { hapticTap(); cycleStove(p.cab.id); }}
-            onCycleFaucet={() => { hapticTap(); cycleFaucet(p.cab.id); }}
-            onCycleDrawer={() => { hapticTap(); cycleDrawer(p.cab.id); }}
+            onFocusDetail={(d) => { hapticTap(); focusDetail(p.cab.id, d); }}
           />
         );
       })}
@@ -143,7 +132,6 @@ export function Kitchen() {
                 hasHandle={true}
                 isSelected={selectedUpperId === p.cab.id}
                 onSelect={() => { hapticTap(); selectUpper(p.cab.id); }}
-                onCycleHandle={() => { hapticTap(); cycleUpperHandle(p.cab.id); }}
               />
             );
           })}

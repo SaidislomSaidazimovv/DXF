@@ -14,9 +14,12 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUI, selectCurrentVariant } from '@/store/uiStore';
 import { cabinetLabel, INTERACTION } from '@/types/ui';
+import type { MaterialId } from '@/types/ui';
+import { PALETTE_MATERIALS } from '@/mocks/materials';
+import { MiniSwatch } from '@/components/shared/MiniSwatch';
 import { COLORS, RADII, SHADOWS, SPACE, TYPE } from '@/lib/tokens';
 import { useT } from '@/lib/i18n';
-import { hapticTap } from '@/lib/haptics';
+import { hapticTap, hapticSwatch } from '@/lib/haptics';
 
 /** Approx height of StudioBottomBar (paddingVert 12*2 + button height ~46) */
 const BOTTOM_BAR_HEIGHT = 78;
@@ -31,9 +34,11 @@ export function SelectionPill() {
   const resizeCabinet = useUI((s) => s.resizeCabinet);
 
   /* Per-cabinet current values + global fallbacks */
+  const globalMaterial = useUI((s) => s.globalMaterial);
   const globalDoorStyle = useUI((s) => s.globalDoorStyle);
   const sinkTypeDefault = useUI((s) => s.sinkType);
   const stoveTypeDefault = useUI((s) => s.stoveType);
+  const cabinetMaterial = useUI((s) => s.cabinetMaterial);
   const cabinetDoorStyle = useUI((s) => s.cabinetDoorStyle);
   const cabinetHandle = useUI((s) => s.cabinetHandle);
   const cabinetSink = useUI((s) => s.cabinetSink);
@@ -41,8 +46,13 @@ export function SelectionPill() {
   const cabinetFaucet = useUI((s) => s.cabinetFaucet);
   const cabinetFaucetFinish = useUI((s) => s.cabinetFaucetFinish);
   const cabinetBurners = useUI((s) => s.cabinetBurners);
+  const upperMaterialMap = useUI((s) => s.upperMaterial);
+  const upperHandleMap = useUI((s) => s.upperHandle);
 
   /* Direct setters for chip controls */
+  const setCabMaterial = useUI((s) => s.setCabinetMaterial);
+  const setUpperMaterial = useUI((s) => s.setUpperMaterial);
+  const setUpperHandle = useUI((s) => s.setUpperHandle);
   const setDoorStyle = useUI((s) => s.setCabinetDoorStyle);
   const setHandle = useUI((s) => s.setCabinetHandle);
   const setSink = useUI((s) => s.setCabinetSink);
@@ -98,7 +108,27 @@ export function SelectionPill() {
           </Pressable>
         </View>
         <View style={styles.divider} />
-        <Text style={styles.hint}>tap дверь — ручка · кнопка «material» — цвет</Text>
+
+        {/* Colour swatches — per-upper override */}
+        <Text style={styles.chipLabel}>ЦВЕТ ФАСАДА</Text>
+        <View style={styles.swatchRow}>
+          {PALETTE_MATERIALS.map((m) => (
+            <MiniSwatch
+              key={m.id}
+              material={m}
+              active={(upperMaterialMap[selectedUpperId] ?? globalMaterial) === m.id}
+              onPress={() => { hapticSwatch(); setUpperMaterial(selectedUpperId, m.id as MaterialId); }}
+              size={34}
+            />
+          ))}
+        </View>
+
+        <ChipRow
+          label="РУЧКА"
+          options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}
+          value={upperHandleMap[selectedUpperId] ?? 'bar'}
+          onPick={(v) => setUpperHandle(selectedUpperId, v as any)}
+        />
       </Animated.View>
     );
   }
@@ -171,6 +201,20 @@ export function SelectionPill() {
 
         return (
           <View>
+            {/* Colour swatches — per-cabinet override */}
+            <Text style={styles.chipLabel}>ЦВЕТ ФАСАДА</Text>
+            <View style={styles.swatchRow}>
+              {PALETTE_MATERIALS.map((m) => (
+                <MiniSwatch
+                  key={m.id}
+                  material={m}
+                  active={(cabinetMaterial[cab.id] ?? globalMaterial) === m.id}
+                  onPress={() => { hapticSwatch(); setCabMaterial(cab.id, m.id as MaterialId); }}
+                  size={34}
+                />
+              ))}
+            </View>
+
             {hasDoor && (
               <>
                 <ChipRow
@@ -237,7 +281,6 @@ export function SelectionPill() {
               </>
             )}
 
-            <Text style={styles.hint}>Цвет — кнопкой «material» внизу</Text>
           </View>
         );
       })()}
@@ -326,6 +369,12 @@ const styles = StyleSheet.create({
 
   chipBlock: { marginBottom: SPACE.sm },
   chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 4 },
+  swatchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SPACE.xs,
+    marginBottom: SPACE.sm,
+  },
   chipRow: { flexDirection: 'row', gap: SPACE.xs, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: SPACE.md,

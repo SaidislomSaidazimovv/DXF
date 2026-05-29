@@ -148,6 +148,8 @@ export interface UIState {
   // UI ephemeral
   selectedCabinetId: string | null;
   selectedUpperId: string | null;
+  /** Which fixture of the selected cabinet the camera is zoomed onto. */
+  selectedDetail: 'faucet' | 'stove' | 'sink' | null;
   viewMode: ViewMode;
   heroMode: boolean;
 
@@ -193,8 +195,11 @@ export interface UIState {
   setCabinetBurners: (cabId: string, v: BurnerCount) => void;
   selectCabinet: (id: string | null) => void;
   selectUpper: (id: string | null) => void;
+  /** Select a cabinet AND zoom to one of its fixtures. */
+  focusDetail: (cabId: string, detail: 'faucet' | 'stove' | 'sink') => void;
   setUpperMaterial: (cabId: string, m: MaterialId) => void;
   cycleUpperHandle: (cabId: string) => void;
+  setUpperHandle: (cabId: string, v: HandleType) => void;
   resizeCabinet: (cabId: string, deltaMm: number) => void;
   setCabinetDrawerCount: (cabId: string, count: 2 | 3 | 4) => void;
   cycleCabinetDrawerCount: (cabId: string) => void;
@@ -285,6 +290,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   // UI
   selectedCabinetId: null,
   selectedUpperId: null,
+  selectedDetail: null,
   viewMode: '3d',
   heroMode: false,
 
@@ -325,6 +331,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       dismissedAdvisorTips: [],
       selectedCabinetId: null,
       selectedUpperId: null,
+      selectedDetail: null,
       viewMode: '3d',
       heroMode: false,
     });
@@ -421,6 +428,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       hardeningPanels: [],
       selectedCabinetId: null,
       selectedUpperId: null,
+      selectedDetail: null,
     });
   },
 
@@ -472,6 +480,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       hardeningPanels: [],
       selectedCabinetId: null,
       selectedUpperId: null,
+      selectedDetail: null,
     });
   },
 
@@ -563,12 +572,17 @@ export const useUI = create<UIState>()(persist((set, get) => ({
        (id === null) is always allowed. Selecting a cabinet clears any
        upper selection (focus is mutually exclusive). */
     if (id !== null && get().heroMode) return;
-    set({ selectedCabinetId: id, selectedUpperId: null });
+    set({ selectedCabinetId: id, selectedUpperId: null, selectedDetail: null });
   },
 
   selectUpper: (id) => {
     if (id !== null && get().heroMode) return;
-    set({ selectedUpperId: id, selectedCabinetId: null });
+    set({ selectedUpperId: id, selectedCabinetId: null, selectedDetail: null });
+  },
+
+  focusDetail: (cabId, detail) => {
+    if (get().heroMode) return;
+    set({ selectedCabinetId: cabId, selectedUpperId: null, selectedDetail: detail });
   },
 
   setUpperMaterial: (cabId, m) =>
@@ -579,6 +593,9 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       const cur = s.upperHandle[cabId] ?? 'bar';
       return { upperHandle: { ...s.upperHandle, [cabId]: nextInCycle(HANDLE_CYCLE, cur) } };
     }),
+
+  setUpperHandle: (cabId, v) =>
+    set((s) => ({ upperHandle: { ...s.upperHandle, [cabId]: v } })),
 
   resizeCabinet: (cabId, deltaMm) =>
     set((s) => {
