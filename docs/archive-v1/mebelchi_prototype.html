@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Mebelchi · NFS demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap&subset=cyrillic,latin" rel="stylesheet">
+<style>
+  :root {
+    --bg-page: #d8d3c8;
+    --bg-stage: #f2efe8;
+    --bg-card: #ffffff;
+    --bg-card-tint: rgba(255, 255, 255, 0.92);
+    --ink: #1c1c1a;
+    --ink-muted: #6b6a64;
+    --ink-faint: #a8a69e;
+    --line: rgba(28, 28, 26, 0.12);
+    --line-strong: rgba(28, 28, 26, 0.22);
+    --accent: #1d6fb8;
+    --accent-soft: rgba(29, 111, 184, 0.12);
+    --warn: #b85b1d;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    background: var(--bg-page);
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  body { display: flex; align-items: center; justify-content: center; padding: 16px; }
+
+  .phone {
+    width: 100%; max-width: 390px; height: 100%; max-height: 844px;
+    background: var(--bg-stage); border-radius: 36px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 20px 50px rgba(0,0,0,0.12);
+  }
+  @media (max-width: 480px) {
+    body { padding: 0; }
+    .phone { border-radius: 0; max-width: 100%; max-height: 100%; box-shadow: none; }
+  }
+
+  /* Header */
+  .hdr {
+    position: absolute; top: 14px; left: 14px; right: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    z-index: 30; pointer-events: none; transition: opacity 240ms;
+  }
+  .hdr.hidden { opacity: 0; pointer-events: none; }
+  .hdr .pill {
+    background: var(--bg-card-tint); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid var(--line); padding: 8px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.01em; color: var(--ink);
+    pointer-events: auto;
+  }
+  .hdr .pill .lbl { color: var(--ink-muted); font-weight: 400; margin-right: 4px; }
+  .hdr .pill.tap { cursor: pointer; transition: background 120ms; }
+  .hdr .pill.tap:active { background: var(--bg-card); }
+  .hdr .pill.price b { font-family: var(--font-mono); font-weight: 600; }
+  @keyframes pillPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(29,111,184,0.45); }
+    100% { box-shadow: 0 0 0 14px rgba(29,111,184,0); }
+  }
+  .hdr .pill.pulse { animation: pillPulse 620ms ease-out; }
+
+  /* Language toggle — Stage 1/2 only (setup choice, hidden after) */
+  .lang {
+    position: absolute; top: 52px; left: 14px; z-index: 31;
+    display: flex; gap: 2px; background: var(--bg-card-tint);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid var(--line); border-radius: 999px; padding: 3px;
+    transition: opacity 220ms;
+  }
+  .lang.hidden { opacity: 0; pointer-events: none; }
+  .lang button {
+    border: none; background: transparent; color: var(--ink-muted);
+    font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+    padding: 4px 9px; border-radius: 999px; cursor: pointer;
+  }
+  .lang button.on { background: var(--ink); color: var(--bg-card); }
+
+  canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+
+  /* Template dots */
+  .dots {
+    position: absolute; top: 58px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 2px; z-index: 20; pointer-events: auto; transition: opacity 220ms;
+  }
+  .dots.hidden { opacity: 0; pointer-events: none; }
+  .dot-hit { padding: 9px 5px; cursor: pointer; display: flex; align-items: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(28,28,26,0.22); transition: all 220ms; }
+  .dot.active { width: 18px; border-radius: 3px; background: var(--ink); }
+
+  /* Floating overlays (NFS) */
+  .ovl {
+    position: absolute; z-index: 40; transform: translate(-50%, -50%);
+    pointer-events: auto; opacity: 0; transition: opacity 180ms;
+  }
+  .ovl.show { opacity: 1; }
+  .ovl.btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--bg-card); border: 0.5px solid var(--line-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 500; color: var(--ink);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; transition: transform 80ms;
+  }
+  .ovl.btn:active { transform: translate(-50%, -50%) scale(0.92); }
+  .ovl.dim {
+    background: var(--ink); color: var(--bg-card); padding: 5px 11px; border-radius: 999px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.02em; pointer-events: none; white-space: nowrap;
+  }
+
+  /* Bottom action area */
+  .bot {
+    position: absolute; left: 14px; right: 14px; bottom: 22px; z-index: 25;
+    display: flex; gap: 10px; align-items: center;
+    transition: opacity 240ms, transform 240ms;
+  }
+  .bot.hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+  .bot .primary {
+    flex: 1; background: var(--ink); color: var(--bg-stage); border: none;
+    border-radius: 14px; padding: 16px 18px; font-family: var(--font-sans);
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: transform 80ms;
+  }
+  .bot .primary:active { transform: scale(0.98); }
+  .bot .ghost {
+    background: var(--bg-card-tint); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid var(--line); color: var(--ink); border-radius: 14px;
+    padding: 14px 14px; font-family: var(--font-sans); font-size: 14px; font-weight: 500;
+    cursor: pointer; display: flex; align-items: center; gap: 6px; transition: transform 80ms;
+  }
+  .bot .ghost:active { transform: scale(0.98); }
+  .bot .ghost svg { width: 14px; height: 14px; }
+
+  /* Material drawer */
+  .drawer {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg-card);
+    border-radius: 24px 24px 0 0; padding: 12px 18px 22px; z-index: 50;
+    transform: translateY(110%); transition: transform 280ms cubic-bezier(0.2, 0.9, 0.3, 1);
+    border-top: 0.5px solid var(--line);
+  }
+  .drawer.show { transform: translateY(0); }
+  .drawer .handle { width: 36px; height: 4px; background: var(--line-strong); border-radius: 2px; margin: 0 auto 14px; }
+  .drawer h3 { font-size: 13px; font-weight: 500; color: var(--ink-muted); margin-bottom: 14px; letter-spacing: 0.02em; }
+  .swatches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .swatch {
+    border-radius: var(--radius-md); border: 0.5px solid var(--line); cursor: pointer;
+    position: relative; overflow: hidden; transition: transform 80ms; padding: 0;
+  }
+  .swatch:active { transform: scale(0.96); }
+  .swatch.active { border: 2px solid var(--ink); }
+  .swatch .chip { height: 54px; width: 100%; }
+  .swatch .meta { padding: 7px 9px 8px; background: var(--bg-card); }
+  .swatch .meta .nm { font-size: 12px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swatch .meta .pr { font-size: 10.5px; color: var(--ink-muted); font-family: var(--font-mono); margin-top: 2px; }
+
+  /* Hint */
+  .hint {
+    position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg-card); padding: 8px 14px; border-radius: 999px;
+    font-size: 11px; font-weight: 400; z-index: 22; pointer-events: none;
+    opacity: 0; transition: opacity 240ms; white-space: nowrap; max-width: 92%; text-align: center;
+  }
+  .hint.show { opacity: 0.88; }
+
+  .swipe-cue {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: var(--ink-faint); font-size: 11px; pointer-events: none; z-index: 5;
+    opacity: 0; transition: opacity 300ms; letter-spacing: 0.04em;
+  }
+  .swipe-cue.show { opacity: 1; }
+
+  /* Confirm prompt (Remove) */
+  .confirm-bg { position: absolute; inset: 0; background: rgba(28,28,26,0.28); z-index: 54; opacity: 0; pointer-events: none; transition: opacity 160ms; }
+  .confirm-bg.show { opacity: 1; pointer-events: auto; }
+  .confirm {
+    position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%) scale(0.92);
+    z-index: 55; width: 250px; background: var(--bg-card); border: 0.5px solid var(--line-strong);
+    border-radius: 16px; padding: 17px 18px 14px; box-shadow: 0 12px 32px rgba(0,0,0,0.26);
+    opacity: 0; pointer-events: none; transition: opacity 160ms, transform 160ms; text-align: center;
+  }
+  .confirm.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+  .confirm .c-q { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 14px; }
+  .confirm .c-row { display: flex; gap: 8px; }
+  .confirm .c-row button {
+    flex: 1; padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: var(--font-sans); border: none;
+  }
+  .confirm .c-cancel { background: var(--bg-stage); color: var(--ink); border: 0.5px solid var(--line) !important; }
+  .confirm .c-del { background: var(--warn); color: #fff; }
+  .confirm .c-row button:active { transform: scale(0.97); }
+
+  /* Stage 5 detail toggles */
+  .detail-ctl {
+    position: absolute; z-index: 42; transform: translate(-50%, -50%);
+    background: var(--bg-card); border: 0.5px solid var(--line-strong); border-radius: 999px;
+    padding: 5px; display: flex; gap: 3px; box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+    opacity: 0; pointer-events: none; transition: opacity 180ms;
+  }
+  .detail-ctl.show { opacity: 1; pointer-events: auto; }
+  .detail-ctl .seg {
+    padding: 7px 12px; border-radius: 999px; font-size: 11px; font-weight: 500;
+    color: var(--ink-muted); cursor: pointer; white-space: nowrap; transition: background 120ms, color 120ms;
+  }
+  .detail-ctl .seg.on { background: var(--ink); color: var(--bg-card); }
+  .detail-title {
+    position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 42;
+    font-size: 12px; font-weight: 500; color: var(--ink-muted);
+    background: var(--bg-card-tint); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    padding: 6px 14px; border-radius: 999px; border: 0.5px solid var(--line);
+    opacity: 0; pointer-events: none; transition: opacity 180ms;
+  }
+  .detail-title.show { opacity: 1; }
+
+  /* Stage 6 — hero review (kitchen visible behind, price headline, one CTA) */
+  .stage6 {
+    position: absolute; inset: 0; z-index: 48; pointer-events: none;
+    opacity: 0; visibility: hidden;          /* visibility:hidden — butun ichini hit-testdan chiqaradi */
+    transition: opacity 320ms, visibility 320ms;
+    display: flex; flex-direction: column;
+  }
+  .stage6.show { opacity: 1; visibility: visible; }
+  .s6-back {
+    position: absolute; top: 16px; left: 16px; width: 38px; height: 38px;
+    border-radius: 50%; background: var(--bg-card-tint);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid var(--line); display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--ink); cursor: pointer; pointer-events: none;
+  }
+  .stage6.show .s6-back { pointer-events: auto; }
+  .s6-price {
+    position: absolute; top: 70px; left: 0; right: 0; text-align: center; pointer-events: none;
+  }
+  .s6-price .s6-label {
+    font-size: 12px; font-weight: 500; color: var(--ink-muted);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .s6-price .s6-amount {
+    font-family: var(--font-mono); font-size: 40px; font-weight: 600;
+    color: var(--ink); margin-top: 4px; letter-spacing: -0.02em;
+  }
+  .s6-price .s6-amount .s6-cur { font-size: 17px; color: var(--ink-muted); margin-left: 5px; }
+  .s6-price .s6-meta { font-size: 12px; color: var(--ink-muted); margin-top: 6px; }
+  /* pointer-events FAQAT Stage 6 ochiq bo'lganda. Aks holda bu ko'rinmas tugma
+     pastdagi "материал"/"Сохранить раскрой" panel ustida turib, bosishni o'g'irlardi. */
+  .s6-cta-wrap { position: absolute; left: 14px; right: 14px; bottom: 22px; pointer-events: none; }
+  .stage6.show .s6-cta-wrap { pointer-events: auto; }
+  .s6-cta {
+    width: 100%; background: var(--ink); color: var(--bg-stage); border: none;
+    border-radius: 14px; padding: 17px; font-family: var(--font-sans);
+    font-size: 15px; font-weight: 600; cursor: pointer; transition: transform 80ms;
+  }
+  .s6-cta:active { transform: scale(0.98); }
+
+  /* Quote sheet (generated output) */
+  .quote {
+    position: absolute; inset: 0; background: var(--bg-stage); z-index: 60;
+    transform: translateY(100%); transition: transform 380ms cubic-bezier(0.2, 0.9, 0.3, 1);
+    display: flex; flex-direction: column; padding: 26px 20px 20px; overflow-y: auto;
+  }
+  .quote.show { transform: translateY(0); }
+  .quote .q-close {
+    position: absolute; top: 18px; right: 18px; width: 32px; height: 32px;
+    border-radius: 50%; background: var(--bg-card); border: 0.5px solid var(--line);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    color: var(--ink-muted); cursor: pointer;
+  }
+  .quote h2 {
+    font-size: 13px; font-weight: 500; color: var(--ink-muted);
+    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .quote .q-total {
+    font-family: var(--font-mono); font-size: 34px; font-weight: 600;
+    color: var(--ink); margin-bottom: 2px; letter-spacing: -0.01em;
+  }
+  .quote .q-total .cur { font-size: 16px; color: var(--ink-muted); margin-left: 4px; }
+  .quote .q-sub { font-size: 12px; color: var(--ink-muted); margin-bottom: 18px; }
+  .q-section {
+    background: var(--bg-card); border: 0.5px solid var(--line); border-radius: var(--radius-md);
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .q-section .q-h {
+    font-size: 11px; font-weight: 600; color: var(--ink-muted);
+    letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 9px;
+  }
+  .q-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12.5px; padding: 5px 0; border-bottom: 0.5px solid var(--line); gap: 8px;
+  }
+  .q-row:last-child { border-bottom: none; }
+  .q-row .q-name { color: var(--ink); flex: 1; }
+  .q-row .q-name small { color: var(--ink-faint); }
+  .q-row .q-val { font-family: var(--font-mono); color: var(--ink); white-space: nowrap; }
+  .q-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .q-stat {
+    background: var(--bg-card); border: 0.5px solid var(--line); border-radius: var(--radius-sm);
+    padding: 10px 8px; text-align: center;
+  }
+  .q-stat .v { font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
+  .q-stat .k { font-size: 10px; color: var(--ink-muted); margin-top: 2px; }
+  .quote .q-actions { margin-top: auto; display: flex; gap: 10px; padding-top: 16px; }
+  .quote .q-actions button {
+    flex: 1; padding: 15px; border-radius: 14px; font-family: var(--font-sans);
+    font-size: 13px; font-weight: 500; cursor: pointer; border: none;
+  }
+  .quote .q-dxf { background: var(--accent); color: #fff; }
+  .quote .q-share { background: var(--bg-card); border: 0.5px solid var(--line-strong) !important; color: var(--ink); }
+  .q-note { font-size: 10.5px; color: var(--ink-faint); margin-top: 10px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="hdr" id="hdr">
+    <div class="pill tap" id="wall-pill"><span class="lbl" id="wall-lbl">стена</span><span id="wall-val">2400</span> <span id="wall-unit">мм</span></div>
+    <div class="pill price" id="price-pill"><span class="lbl">~</span><b id="price-val">0</b> <span id="price-cur">сум</span></div>
+  </div>
+
+  <div class="lang" id="lang">
+    <button data-lang="ru" class="on">RU</button>
+    <button data-lang="uz">UZ</button>
+  </div>
+
+  <div class="dots" id="dots"></div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="swipe-cue" id="swipe-cue">← варианты →</div>
+
+  <div class="detail-title" id="detail-title">Фасад · ручка</div>
+
+  <div class="ovl btn" id="btn-minus" style="left:0;top:0;">−</div>
+  <div class="ovl btn" id="btn-plus" style="left:0;top:0;">+</div>
+  <div class="ovl dim" id="dim-label" style="left:0;top:0;">600 мм</div>
+
+  <div class="detail-ctl" id="ctl-door" style="left:0;top:0;"></div>
+  <div class="detail-ctl" id="ctl-handle" style="left:0;top:0;"></div>
+
+  <div class="hint" id="hint"></div>
+
+  <div class="bot" id="bot">
+    <button class="ghost" id="material-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18"/></svg>
+      <span id="material-btn-lbl">материал</span>
+    </button>
+    <button class="primary" id="save-btn">Сохранить раскрой</button>
+  </div>
+
+  <!-- Material drawer (Stage 4) -->
+  <div class="drawer" id="drawer">
+    <div class="handle"></div>
+    <h3>Материал фасада</h3>
+    <div class="swatches" id="swatches"></div>
+  </div>
+
+  <!-- Stage 6 — hero review -->
+  <div class="stage6" id="stage6">
+    <div class="s6-back" id="s6-back">‹</div>
+    <div class="s6-price">
+      <div class="s6-label" id="s6-label">Итого за раскрой</div>
+      <div class="s6-amount"><span id="s6-amount-val">0</span><span class="s6-cur" id="s6-cur">сум</span></div>
+      <div class="s6-meta" id="s6-meta">—</div>
+    </div>
+    <div class="s6-cta-wrap">
+      <button class="s6-cta" id="s6-cta">Сохранить раскрой</button>
+    </div>
+  </div>
+
+  <!-- Confirm (Remove) -->
+  <div class="confirm-bg" id="confirm-bg"></div>
+  <div class="confirm" id="confirm-del">
+    <div class="c-q" id="c-q">Удалить этот шкаф?</div>
+    <div class="c-row">
+      <button class="c-cancel" id="c-cancel">Отмена</button>
+      <button class="c-del" id="c-del">Удалить</button>
+    </div>
+  </div>
+
+  <!-- Quote sheet -->
+  <div class="quote" id="quote">
+    <div class="q-close" id="q-close">✕</div>
+    <h2 id="q-title">Смета · раскрой</h2>
+    <div class="q-total"><span id="q-total-val">0</span><span class="cur" id="q-cur">сум</span></div>
+    <div class="q-sub" id="q-sub">—</div>
+    <div class="q-stat-grid" id="q-stats"></div>
+    <div id="q-body"></div>
+    <div class="q-note" id="q-note"></div>
+    <div class="q-actions">
+      <button class="q-share" id="q-share">Отправить клиенту</button>
+      <button class="q-dxf" id="q-dxf">Скачать DXF</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  /* =====================================================================
+     i18n — Rus (default) + O'zbek (lotin). 10_UI §9 talab.
+     ===================================================================== */
+  const I18N = {
+    ru: {
+      wall:'стена', mm:'мм', sum:'сум', material:'материал',
+      changeSize:'Изменить размер', saveRaskroy:'Сохранить раскрой',
+      tpl_linear:'Линейная', tpl_drawers:'С ящиками', tpl_widesink:'Широкая мойка',
+      tpl_symmetry:'Симметрия', tpl_compact:'Компакт',
+      mat_white:'Белый базовый', mat_cream:'Белый кремовый',
+      mat_oak:'Дуб Небраска', mat_graphite:'Диамант серый',
+      facadeMaterial:'Материал фасада', perM2:'сум/м²',
+      door_flat:'Гладкий', door_frame:'С рамкой', door_groove:'Фрезеровка',
+      h_skoba:'Скоба 128мм', h_profil:'Профиль-ручка', h_knopka:'Ручка-кнопка',
+      cab_base:'Шкаф с дверью', cab_drawer:'Шкаф с ящиками', cab_sink:'Шкаф под мойку',
+      cab_stove:'Шкаф под плиту', cab_fridge:'Холодильник',
+      confirmQ:'Удалить этот шкаф?', cancel:'Отмена', del:'Удалить',
+      removed:'Шкаф удалён', needOne:'Нужен хотя бы один шкаф',
+      hintStart:'Тапни шкаф · свайп — варианты',
+      hintCabinet:'− / + ширина · тап ещё раз — сменить тип · двойной тап — удалить',
+      hintTemplates:'Свайп — варианты · тап — шкаф',
+      hintDetail:'Фасад и ручка · ущипни / колесо назад — выход',
+      detailTitle:'Фасад · ручка', wallMsg:'Стена',
+      s6label:'Итого за раскрой', s6cta:'Сохранить раскрой',
+      qTitle:'Смета · раскрой', cur:'сум',
+      st_cabs:'шкафов', st_sheets:'листов ЛДСП', st_hw:'фурнитуры', parts:'деталей', area:'м²',
+      secMaterial:'Материал', secHardware:'Фурнитура', secKromka:'Кромка',
+      sheet:'лист', pcs:'шт', set:'компл', meter:'м.п.',
+      kromkaName:'Кромка ПВХ 2мм', kromkaMatch:'в цвет фасада',
+      shelfPin:'Полкодержатель Ø5', minifix:'Стяжка Häfele Minifix Ø15',
+      handles:'Ручки', slides:'Направляющие ящиков',
+      qNote:'Расход рассчитан с учётом раскроя. Цены — каталог eman.uz / kis.uz. Итог может измениться на 5–8% после оптимизации.',
+      qShare:'Отправить клиенту', qDxf:'Скачать DXF',
+      msgDxf:'DXF-файл раскроя сохранён',
+      msgShare:'Смета сохранена в файл'
+    },
+    uz: {
+      wall:'devor', mm:'mm', sum:"so'm", material:'material',
+      changeSize:"O'lchamni belgilash", saveRaskroy:'Raskroyni saqlash',
+      tpl_linear:'Chiziqli', tpl_drawers:'Tortmali', tpl_widesink:'Keng mojka',
+      tpl_symmetry:'Simmetriya', tpl_compact:'Kompakt',
+      mat_white:'Oq bazaviy', mat_cream:'Oq krem',
+      mat_oak:'Nebraska emani', mat_graphite:'Kulrang olmos',
+      facadeMaterial:'Fasad materiali', perM2:"so'm/m²",
+      door_flat:'Silliq', door_frame:'Ramkali', door_groove:'Frezerli',
+      h_skoba:'Skoba 128mm', h_profil:'Profil tutqich', h_knopka:'Tugma tutqich',
+      cab_base:'Eshikli shkaf', cab_drawer:'Tortmali shkaf', cab_sink:'Mojka shkafi',
+      cab_stove:'Plita shkafi', cab_fridge:'Muzlatgich',
+      confirmQ:"Bu shkafni o'chirasizmi?", cancel:'Bekor', del:"O'chirish",
+      removed:"Shkaf o'chirildi", needOne:'Kamida bitta shkaf kerak',
+      hintStart:'Shkafni bosing · svayp — variantlar',
+      hintCabinet:"− / + kenglik · yana bosing — tip · ikki marta — o'chirish",
+      hintTemplates:'Svayp — variantlar · bosish — shkaf',
+      hintDetail:'Fasad va tutqich · chimchilang / g‘ildirak orqaga — chiqish',
+      detailTitle:'Fasad · tutqich', wallMsg:'Devor',
+      s6label:'Raskroy narxi', s6cta:'Raskroyni saqlash',
+      qTitle:'Smeta · raskroy', cur:"so'm",
+      st_cabs:'shkaf', st_sheets:'LDSP list', st_hw:'furnitura', parts:'detal', area:'m²',
+      secMaterial:'Material', secHardware:'Furnitura', secKromka:'Kromka',
+      sheet:'list', pcs:'dona', set:'kompl', meter:'m.p.',
+      kromkaName:'PVX kromka 2mm', kromkaMatch:'fasad rangida',
+      shelfPin:'Polka shtifti Ø5', minifix:'Styajka Häfele Minifix Ø15',
+      handles:'Tutqichlar', slides:'Tortma relslari',
+      qNote:"Sarf raskroy hisobi bilan. Narxlar — eman.uz / kis.uz katalogi. Yakun optimizatsiyadan keyin 5–8% o'zgarishi mumkin.",
+      qShare:'Mijozga yuborish', qDxf:'DXF yuklash',
+      msgDxf:'DXF raskroy fayli saqlandi',
+      msgShare:'Smeta faylga saqlandi'
+    }
+  };
+  let lang = 'ru';
+  function t(k) { return (I18N[lang][k] !== undefined) ? I18N[lang][k] : k; }
+
+  /* =====================================================================
+     CATALOG — kuratsiya qilingan to'plam (data/catalog.json dan)
+     ===================================================================== */
+  const SHEET_M2 = 5.796;
+  const CATALOG = {
+    facades: [
+      { id:'white_base', nameKey:'mat_white', catalogName:'ЛДСП Эггер Белый Базовый 16мм SM',
+        facade:0xf1ede3, top:0x2c2c2a, kromka:0xe4ddc9, kromkaName:'Белый базовый',
+        isDark:false, sheetPrice:512500, thickness:16 },
+      { id:'cream', nameKey:'mat_cream', catalogName:'ЛДСП Эггер Белый кремовый 16мм ST15',
+        facade:0xe9ddc4, top:0x2c2c2a, kromka:0xd8caa8, kromkaName:'Кремовый',
+        isDark:false, sheetPrice:625000, thickness:16 },
+      { id:'oak', nameKey:'mat_oak', catalogName:'ЛДСП Эггер Дуб Небраска серый 18мм ST10',
+        facade:0xb6a079, top:0x36312a, kromka:0x9c8762, kromkaName:'Дуб Небраска',
+        isDark:false, sheetPrice:650000, thickness:18 },
+      { id:'graphite', nameKey:'mat_graphite', catalogName:'ЛДСП Эггер Диамант серый 18мм ST9',
+        facade:0x6d6f73, top:0x1f2022, kromka:0x55575a, kromkaName:'Диамант серый',
+        isDark:true, sheetPrice:725000, thickness:18 }
+    ],
+    /* Petlya — budjet darajasidan kelib chiqadi (10_UI §1) */
+    hinges: {
+      budget:   { name:'Boyard H300A 110°',            price:15000 },
+      standard: { name:'Hettich Sensys 8638i 95°',     price:50000 },
+      premium:  { name:'Blum CLIP top BLUMOTION 110°', price:56000 }
+    },
+    /* Tortma relslari — budjet darajasidan kelib chiqadi (10_UI §1) */
+    slides: {
+      budget:   { name:'Boyard роликовые 400мм',  price:18000 },
+      standard: { name:'GTV метабокс 400мм',      price:46000 },
+      premium:  { name:'Blum TANDEMBOX 400мм',    price:168000 }
+    },
+    handles: [
+      { id:'skoba',   nameKey:'h_skoba',  price:43750 },
+      { id:'profil',  nameKey:'h_profil', price:82000 },
+      { id:'knopka',  nameKey:'h_knopka', price:28000 }
+    ],
+    doorStyles: [
+      { id:'flat',   nameKey:'door_flat' },
+      { id:'frame',  nameKey:'door_frame' },
+      { id:'groove', nameKey:'door_groove' }
+    ],
+    misc: {
+      shelfPin:  { price:437 },
+      minifix:   { price:9500 },
+      kromkaM:   { price:3200 }
+    }
+  };
+  let budgetTier = 'standard';
+
+  /* =====================================================================
+     DOM
+     ===================================================================== */
+  const $ = id => document.getElementById(id);
+  const canvas = $('canvas');
+  const btnMinus = $('btn-minus'), btnPlus = $('btn-plus'), dimLabel = $('dim-label');
+  const hint = $('hint'), priceEl = $('price-val'), wallVal = $('wall-val'), wallPill = $('wall-pill');
+  const dotsEl = $('dots'), drawer = $('drawer'), materialBtn = $('material-btn');
+  const swatchesEl = $('swatches'), swipeCue = $('swipe-cue'), saveBtn = $('save-btn');
+  const hdr = $('hdr'), bot = $('bot'), langEl = $('lang');
+  const confirmDel = $('confirm-del'), confirmBg = $('confirm-bg');
+  const ctlDoor = $('ctl-door'), ctlHandle = $('ctl-handle'), detailTitle = $('detail-title');
+  const quote = $('quote'), stage6El = $('stage6');
+
+  /* =====================================================================
+     STAGE MACHINE — 10_UI §4: 6 bosqich
+     ===================================================================== */
+  const STAGE = { ARRIVAL:1, TEMPLATES:2, CABINET:3, MATERIAL:4, DETAIL:5, LOCK:6 };
+  let stage = STAGE.ARRIVAL;
+
+  /* =====================================================================
+     Templates
+     ===================================================================== */
+  const TEMPLATES = [
+    { key:'tpl_linear',   cabs:[{w:0.6,t:'base'},{w:0.8,t:'sink'},{w:0.6,t:'stove'},{w:0.4,t:'base'}] },
+    { key:'tpl_drawers',  cabs:[{w:0.4,t:'drawer'},{w:0.8,t:'sink'},{w:0.6,t:'stove'},{w:0.6,t:'drawer'}] },
+    { key:'tpl_widesink', cabs:[{w:1.0,t:'sink'},{w:0.6,t:'stove'},{w:0.8,t:'drawer'}] },
+    { key:'tpl_symmetry', cabs:[{w:0.5,t:'base'},{w:0.7,t:'sink'},{w:0.7,t:'stove'},{w:0.5,t:'base'}] },
+    { key:'tpl_compact',  cabs:[{w:0.5,t:'drawer'},{w:0.7,t:'sink'},{w:0.5,t:'stove'},{w:0.7,t:'drawer'}] }
+  ];
+  let templateIdx = 0;
+  const SWAP_CYCLE = ['base', 'drawer', 'sink', 'stove', 'fridge'];
+
+  let materialIdx = 0;
+  function MAT() { return CATALOG.facades[materialIdx]; }
+
+  let cabinets = TEMPLATES[0].cabs.map(c => ({ ...c, door:'flat', handle:'skoba' }));
+  const CABINET_H = 0.85, CABINET_D = 0.56, PLINTH = 0.1;
+  const DOUBLE_DOOR_W = 0.50;  /* 10_UI §1: >500mm → 2 doors */
+
+  /* =====================================================================
+     Three.js
+     ===================================================================== */
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, canvas.clientWidth / canvas.clientHeight, 0.05, 100);
+
+  const OVERVIEW_POS = new THREE.Vector3(2.4, 1.9, 3.4);
+  const OVERVIEW_LOOK = new THREE.Vector3(0, 0.55, -0.2);
+  camera.position.copy(OVERVIEW_POS);
+  camera.lookAt(OVERVIEW_LOOK);
+
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  /* Realistik render — sRGB rang, kinematik tone-mapping, yumshoq soyalar */
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  /* Atrof-muhit xaritasi (procedural gradient) — yumshoq aks etish va IBL yorug'lik */
+  (function () {
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 128;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 128);
+    g.addColorStop(0.00, '#fff6e8');
+    g.addColorStop(0.45, '#efe9dc');
+    g.addColorStop(0.56, '#e4dccb');
+    g.addColorStop(1.00, '#8f8779');
+    x.fillStyle = g; x.fillRect(0, 0, 16, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromEquirectangular(tex).texture;
+    pmrem.dispose(); tex.dispose();
+  })();
+
+  /* Lights — referenceable (Stage 6 warm lighting uchun) */
+  const ambient = new THREE.AmbientLight(0xfff5e6, 0.6);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xffeacc, 0.7);
+  sun.position.set(2.5, 5, 3);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 22;
+  sun.shadow.camera.left = -4.5; sun.shadow.camera.right = 4.5;
+  sun.shadow.camera.top = 4.5;  sun.shadow.camera.bottom = -4.5;
+  sun.shadow.bias = -0.0009;
+  sun.shadow.radius = 4;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xc8d8ff, 0.25);
+  fill.position.set(-3, 2, 2);
+  scene.add(fill);
+
+  const LIGHT_NORMAL = { ambC:0xfff5e6, ambI:0.6, sunC:0xffeacc, sunI:0.7, fillC:0xc8d8ff, fillI:0.25 };
+  /* 10_UI §8 "warmer lighting" — YENGIL warm, fasad rangini buzmaydi (material o'zgarmadek ko'rinmasligi uchun) */
+  const LIGHT_WARM   = { ambC:0xfff3e2, ambI:0.60, sunC:0xffe4c0, sunI:0.82, fillC:0xd8d4cc, fillI:0.22 };
+  function setLighting(L) {
+    ambient.color.setHex(L.ambC); ambient.intensity = L.ambI;
+    sun.color.setHex(L.sunC); sun.intensity = L.sunI;
+    fill.color.setHex(L.fillC); fill.intensity = L.fillI;
+  }
+
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 6),
+    new THREE.MeshStandardMaterial({ color: 0xe8e2d2, roughness: 1 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  const wall = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 3),
+    new THREE.MeshStandardMaterial({ color: 0xddd6c5, roughness: 1 })
+  );
+  wall.position.set(0, 1.5, -0.62);
+  wall.receiveShadow = true;
+  scene.add(wall);
+
+  const highlightMat = new THREE.MeshStandardMaterial({ color: 0x1d6fb8, transparent: true, opacity: 0.16, roughness: 0.4 });
+  const cabinetGroup = new THREE.Group();
+  scene.add(cabinetGroup);
+
+  /* Dub Nebraska uchun procedural yog'och naqsh tekstura (tashqi fayl kerak emas) */
+  let _woodTex = null;
+  function woodTexture() {
+    if (_woodTex) return _woodTex;
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const x = c.getContext('2d');
+    x.fillStyle = '#b6a079'; x.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 80; i++) {
+      const bx = Math.random() * 512, dark = Math.random() < 0.5;
+      x.strokeStyle = dark ? 'rgba(86,74,55,0.28)' : 'rgba(214,200,170,0.30)';
+      x.lineWidth = 0.5 + Math.random() * 2.6;
+      x.beginPath();
+      for (let y = 0; y <= 512; y += 14) {
+        const xx = bx + Math.sin(y * 0.012 + i) * 7 + Math.sin(y * 0.06 + i * 2) * 2.5;
+        y === 0 ? x.moveTo(xx, y) : x.lineTo(xx, y);
+      }
+      x.stroke();
+    }
+    _woodTex = new THREE.CanvasTexture(c);
+    _woodTex.wrapS = _woodTex.wrapT = THREE.RepeatWrapping;
+    _woodTex.encoding = THREE.sRGBEncoding;
+    return _woodTex;
+  }
+  function currentFacadeMat() {
+    const m = MAT();
+    const mat = new THREE.MeshStandardMaterial({
+      color: m.facade,
+      roughness: m.isDark ? 0.42 : (m.id === 'oak' ? 0.62 : 0.68),
+      metalness: 0.0,
+      envMapIntensity: m.isDark ? 0.6 : 0.34
+    });
+    if (m.id === 'oak') { mat.map = woodTexture(); mat.color.setHex(0xffffff); }
+    return mat;
+  }
+  function currentTopMat() {
+    const m = MAT();
+    return new THREE.MeshStandardMaterial({
+      color: m.top, roughness: 0.26, metalness: 0.12, envMapIntensity: 0.75
+    });
+  }
+  /* Muzlatgich — metall ko'rinish (fasad materialiga bog'liq emas) */
+  function fridgeMat() {
+    return new THREE.MeshStandardMaterial({
+      color: 0xd6d9dc, roughness: 0.22, metalness: 0.78, envMapIntensity: 1.0
+    });
+  }
+  function disposeGroup(g) { g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+
+  function buildKitchen() {
+    while (cabinetGroup.children.length) {
+      const c = cabinetGroup.children[0];
+      cabinetGroup.remove(c);
+      disposeGroup(c);
+    }
+    const totalW = cabinets.reduce((s, c) => s + c.w, 0);
+    let x = -totalW / 2;
+
+    const wt = new THREE.Mesh(
+      new THREE.BoxGeometry(totalW + 0.04, 0.038, CABINET_D + 0.04), currentTopMat()
+    );
+    wt.position.set(0, PLINTH + CABINET_H + 0.019, -CABINET_D / 2 - 0.03);
+    wt.userData = { isWorktop: true };
+    cabinetGroup.add(wt);
+
+    cabinets.forEach((cab, i) => {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(cab.w - 0.003, CABINET_H, CABINET_D),
+        cab.t === 'fridge' ? fridgeMat() : currentFacadeMat()
+      );
+      body.position.set(x + cab.w / 2, PLINTH + CABINET_H / 2, -CABINET_D / 2 - 0.05);
+      body.userData = { cabinetIndex: i, isCabinet: true };
+      g.add(body);
+
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 });
+
+      if (cab.t === 'drawer') {
+        for (let k = 1; k < 3; k++) {
+          const div = new THREE.Mesh(new THREE.BoxGeometry(cab.w - 0.02, 0.003, 0.002), lineMat);
+          div.position.set(body.position.x, PLINTH + (CABINET_H * k / 3), body.position.z + CABINET_D / 2 + 0.001);
+          g.add(div);
+        }
+      } else if (cab.t === 'fridge') {
+        /* muzlatgich — gorizontal chok (muzxona / sovutgich bo'limi) */
+        const seam = new THREE.Mesh(new THREE.BoxGeometry(cab.w - 0.02, 0.005, 0.002), lineMat);
+        seam.position.set(body.position.x, PLINTH + CABINET_H * 0.64, body.position.z + CABINET_D / 2 + 0.001);
+        g.add(seam);
+      } else if (cab.w > DOUBLE_DOOR_W) {
+        const div = new THREE.Mesh(new THREE.BoxGeometry(0.003, CABINET_H - 0.03, 0.002), lineMat);
+        div.position.set(body.position.x, body.position.y, body.position.z + CABINET_D / 2 + 0.001);
+        g.add(div);
+      }
+
+      if (cab.door === 'frame' && cab.t !== 'drawer' && cab.t !== 'fridge') {
+        const fr = new THREE.Mesh(new THREE.BoxGeometry(cab.w - 0.10, CABINET_H - 0.12, 0.003), lineMat);
+        fr.position.set(body.position.x, body.position.y, body.position.z + CABINET_D / 2 + 0.0015);
+        g.add(fr);
+      } else if (cab.door === 'groove' && cab.t !== 'drawer' && cab.t !== 'fridge') {
+        for (let k = 0; k < 3; k++) {
+          const gr = new THREE.Mesh(new THREE.BoxGeometry(cab.w - 0.08, 0.004, 0.002), lineMat);
+          gr.position.set(body.position.x, PLINTH + 0.2 + k * 0.18, body.position.z + CABINET_D / 2 + 0.0012);
+          g.add(gr);
+        }
+      }
+
+      if (cab.t === 'sink') {
+        const sinkMat = new THREE.MeshStandardMaterial({ color: 0x9a9a96, roughness: 0.25, metalness: 0.5 });
+        const sink = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.42, cab.w * 0.62), 0.012, 0.34), sinkMat);
+        sink.position.set(body.position.x, PLINTH + CABINET_H + 0.045, -CABINET_D / 2 - 0.04);
+        g.add(sink);
+      }
+
+      if (cab.t === 'stove') {
+        /* plita — ish stoli ustida pishirish yuzasi + 4 ta konforka */
+        const ctW = Math.min(0.54, cab.w * 0.82), ctD = 0.40;
+        const cooktop = new THREE.Mesh(
+          new THREE.BoxGeometry(ctW, 0.014, ctD),
+          new THREE.MeshStandardMaterial({ color: 0x232321, roughness: 0.35, metalness: 0.3 })
+        );
+        cooktop.position.set(body.position.x, PLINTH + CABINET_H + 0.046, -CABINET_D / 2 - 0.04);
+        g.add(cooktop);
+        const burnerMat = new THREE.MeshStandardMaterial({ color: 0x4c4c47, roughness: 0.5, metalness: 0.4 });
+        [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
+          const burner = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.006, 18), burnerMat);
+          burner.position.set(body.position.x + sx * ctW * 0.24, PLINTH + CABINET_H + 0.056, -CABINET_D / 2 - 0.04 + sz * ctD * 0.22);
+          g.add(burner);
+        });
+      }
+
+      const handleMat = new THREE.MeshStandardMaterial({ color: 0x2c2c2a, roughness: 0.3, metalness: 0.4 });
+      const isKnob = cab.handle === 'knopka';
+      if (cab.t === 'drawer') {
+        for (let k = 0; k < 3; k++) {
+          const hg = isKnob
+            ? new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.016, 12), handleMat)
+            : new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.12, cab.w * 0.3), 0.008, 0.012), handleMat);
+          if (isKnob) hg.rotation.x = Math.PI / 2;
+          hg.position.set(body.position.x, PLINTH + (CABINET_H * (k + 0.5) / 3) - 0.04, body.position.z + CABINET_D / 2 + 0.012);
+          g.add(hg);
+        }
+      } else if (cab.t === 'fridge') {
+        /* muzlatgich — uzun vertikal tutqich */
+        const hg = new THREE.Mesh(new THREE.BoxGeometry(0.016, CABINET_H * 0.52, 0.022), handleMat);
+        hg.position.set(body.position.x + cab.w / 2 - 0.055, PLINTH + CABINET_H * 0.56, body.position.z + CABINET_D / 2 + 0.014);
+        g.add(hg);
+      } else {
+        const hg = isKnob
+          ? new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.018, 14), handleMat)
+          : new THREE.Mesh(new THREE.BoxGeometry(0.008, Math.min(0.16, CABINET_H * 0.25), 0.012), handleMat);
+        if (isKnob) hg.rotation.x = Math.PI / 2;
+        hg.position.set(
+          body.position.x + (cab.w > DOUBLE_DOOR_W ? -0.02 : (cab.w / 2 - 0.04)),
+          PLINTH + CABINET_H - 0.16, body.position.z + CABINET_D / 2 + 0.012
+        );
+        g.add(hg);
+      }
+
+      const plinth = new THREE.Mesh(
+        new THREE.BoxGeometry(cab.w - 0.003, PLINTH, CABINET_D - 0.05),
+        new THREE.MeshStandardMaterial({ color: 0x3a3a37, roughness: 0.8 })
+      );
+      plinth.position.set(body.position.x, PLINTH / 2, body.position.z + 0.02);
+      g.add(plinth);
+
+      const hl = new THREE.Mesh(
+        new THREE.BoxGeometry(cab.w + 0.04, CABINET_H + 0.05, CABINET_D + 0.05), highlightMat
+      );
+      hl.position.copy(body.position);
+      hl.visible = false;
+      hl.userData = { isHighlight: true };
+      g.add(hl);
+
+      cabinetGroup.add(g);
+      x += cab.w;
+    });
+    /* Realistik soyalar — highlight'dan tashqari barcha mesh soya beradi/qabul qiladi */
+    cabinetGroup.traverse(o => {
+      if (o.isMesh && !(o.userData && o.userData.isHighlight)) {
+        o.castShadow = true; o.receiveShadow = true;
+      }
+    });
+    applyDetailFade();
+  }
+
+  /* =====================================================================
+     Raycaster
+     ===================================================================== */
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  function readPointer(e) {
+    const rect = canvas.getBoundingClientRect();
+    const ev = e.touches && e.touches[0] ? e.touches[0]
+             : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e);
+    pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+  }
+  function cabinetBodies() {
+    const arr = [];
+    cabinetGroup.children.forEach(g => {
+      if (g.children && g.children[0] && g.children[0].userData.isCabinet) arr.push(g.children[0]);
+    });
+    return arr;
+  }
+  function hitCabinet() {
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(cabinetBodies(), false);
+    return hits.length > 0 ? hits[0].object.userData.cabinetIndex : -1;
+  }
+
+  /* =====================================================================
+     Camera tween — 10_UI §5
+     ===================================================================== */
+  let camFrom = camera.position.clone(), camTo = camera.position.clone();
+  let lookFrom = OVERVIEW_LOOK.clone(), lookTo = OVERVIEW_LOOK.clone();
+  const currentLook = OVERVIEW_LOOK.clone();
+  let tweenStart = 0, tweenDur = 500, tweening = false;
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  function tweenTo(pos, look, dur) {
+    camFrom = camera.position.clone();
+    camTo = pos.clone();
+    lookFrom = currentLook.clone();
+    lookTo = look.clone();
+    tweenStart = performance.now();
+    tweenDur = dur || 500;
+    tweening = true;
+  }
+
+  /* =====================================================================
+     Selection
+     ===================================================================== */
+  let selectedIdx = -1;
+  function clearHighlight() {
+    cabinetGroup.children.forEach(g => {
+      g.children.forEach(c => { if (c.userData.isHighlight) c.visible = false; });
+    });
+  }
+  function setHighlight(idx) {
+    clearHighlight();
+    if (idx < 0) return;
+    const g = cabinetGroup.children[idx + 1];
+    if (!g) return;
+    g.children.forEach(c => { if (c.userData.isHighlight) c.visible = true; });
+  }
+  function focusCamera(idx, dur) {
+    const g = cabinetGroup.children[idx + 1];
+    const body = g.children[0];
+    const center = body.position.clone();
+    const cab = cabinets[idx];
+    const camPos = new THREE.Vector3(
+      center.x * 0.5 + (center.x > 0 ? 0.55 : -0.55),
+      center.y + 0.45,
+      center.z + 1.55 + cab.w * 0.4
+    );
+    tweenTo(camPos, center.clone().setY(center.y + 0.05), dur || 480);
+  }
+
+  /* =====================================================================
+     Stage transitions
+     ===================================================================== */
+  function gotoStage(s) {
+    stage = s;
+    hdr.classList.toggle('hidden', s === STAGE.LOCK);
+    bot.classList.toggle('hidden', s === STAGE.LOCK);
+    /* 10_UI §8: dots faqat Stage 2 (Templates) da ko'rinadi, Stage 1 da yashirin */
+    dotsEl.classList.toggle('hidden', s !== STAGE.TEMPLATES);
+    /* Til toggle — faqat Stage 1/2 (setup tanlovi, keyin yashirin) */
+    langEl.classList.toggle('hidden', s !== STAGE.ARRIVAL && s !== STAGE.TEMPLATES);
+    /* 10_UI §8: Stage 1 — "Изменить размер", boshqa stagelarda — "Сохранить раскрой". */
+    saveBtn.textContent = (s === STAGE.ARRIVAL) ? t('changeSize') : t('saveRaskroy');
+    if (s === STAGE.ARRIVAL || s === STAGE.TEMPLATES) { hideOverlays(); hideDetailCtl(); hideConfirm(); }
+    else if (s === STAGE.CABINET) { hideDetailCtl(); hideConfirm(); }
+    else if (s === STAGE.DETAIL) { hideOverlays(); hideConfirm(); }
+    /* 10_UI §8 Stage 6: "all editing UI hidden" — highlight, −/+, dim, detail ctl. */
+    else if (s === STAGE.LOCK) { hideOverlays(); hideDetailCtl(); hideConfirm(); clearHighlight(); }
+  }
+
+  function selectCabinet(idx) {
+    setHighlight(idx);
+    selectedIdx = idx;
+    if (idx < 0) {
+      tweenTo(OVERVIEW_POS, OVERVIEW_LOOK, 540);
+      gotoStage(STAGE.TEMPLATES);
+      showHint(t('hintTemplates'));
+      return;
+    }
+    focusCamera(idx, 480);
+    gotoStage(STAGE.CABINET);
+    showHint(t('hintCabinet'), 4800);
+  }
+
+  /* Verb: Swap */
+  function swapType(idx) {
+    const cab = cabinets[idx];
+    const ci = SWAP_CYCLE.indexOf(cab.t);
+    cab.t = SWAP_CYCLE[(ci + 1 + SWAP_CYCLE.length) % SWAP_CYCLE.length];
+    const remember = idx;
+    buildKitchen();
+    selectedIdx = remember;
+    setHighlight(remember);
+    updatePrice();
+    showHint(t('cab_' + cab.t));
+  }
+
+  /* Verb: Remove */
+  let pendingDelete = -1;
+  function askRemove(idx) {
+    pendingDelete = idx;
+    confirmBg.classList.add('show');
+    confirmDel.classList.add('show');
+  }
+  function hideConfirm() {
+    pendingDelete = -1;
+    confirmBg.classList.remove('show');
+    confirmDel.classList.remove('show');
+  }
+  function doRemove() {
+    if (pendingDelete < 0) return;
+    if (cabinets.length <= 1) { hideConfirm(); showHint(t('needOne')); return; }
+    cabinets.splice(pendingDelete, 1);
+    hideConfirm();
+    buildKitchen();
+    selectCabinet(-1);
+    updatePrice();
+    showHint(t('removed'));
+  }
+  $('c-del').addEventListener('click', (e) => { e.stopPropagation(); doRemove(); });
+  $('c-cancel').addEventListener('click', (e) => { e.stopPropagation(); hideConfirm(); });
+  confirmBg.addEventListener('click', (e) => { e.stopPropagation(); hideConfirm(); });
+
+  /* Verb: Inspect — Stage 5 */
+  function enterDetail(idx) {
+    selectedIdx = idx;
+    setHighlight(-1);
+    gotoStage(STAGE.DETAIL);
+    const g = cabinetGroup.children[idx + 1];
+    const body = g.children[0];
+    const center = body.position.clone();
+    const camPos = new THREE.Vector3(
+      center.x * 0.5 + (center.x > 0 ? 0.35 : -0.35),
+      center.y + 0.30,
+      center.z + 1.15 + cabinets[idx].w * 0.3
+    );
+    tweenTo(camPos, center.clone().setY(center.y), 480);
+    applyDetailFade();
+    detailTitle.textContent = t('detailTitle');
+    detailTitle.classList.add('show');
+    showHint(t('hintDetail'));
+  }
+  function exitDetail() {
+    detailTitle.classList.remove('show');
+    hideDetailCtl();
+    buildKitchen();
+    selectCabinet(selectedIdx);
+  }
+  function applyDetailFade() {
+    if (stage !== STAGE.DETAIL || selectedIdx < 0) return;
+    cabinetGroup.children.forEach((g, gi) => {
+      const isSel = (gi === selectedIdx + 1);
+      g.children.forEach(c => {
+        if (c.userData.isHighlight || !c.material) return;
+        if (!isSel && gi !== 0) { c.material.transparent = true; c.material.opacity = 0.1; }
+      });
+      if (gi === 0) g.children.forEach(c => {
+        if (c.material) { c.material.transparent = true; c.material.opacity = 0.12; }
+      });
+    });
+  }
+  function hideDetailCtl() { ctlDoor.classList.remove('show'); ctlHandle.classList.remove('show'); }
+  function buildDetailControls() {
+    ctlDoor.innerHTML = '';
+    CATALOG.doorStyles.forEach(ds => {
+      const seg = document.createElement('div');
+      seg.className = 'seg' + (cabinets[selectedIdx].door === ds.id ? ' on' : '');
+      seg.textContent = t(ds.nameKey);
+      seg.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        cabinets[selectedIdx].door = ds.id;
+        const rem = selectedIdx;
+        buildKitchen(); selectedIdx = rem;
+        applyDetailFade(); buildDetailControls(); updatePrice();
+      });
+      ctlDoor.appendChild(seg);
+    });
+    ctlHandle.innerHTML = '';
+    CATALOG.handles.forEach(h => {
+      const seg = document.createElement('div');
+      seg.className = 'seg' + (cabinets[selectedIdx].handle === h.id ? ' on' : '');
+      seg.textContent = t(h.nameKey);
+      seg.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        cabinets[selectedIdx].handle = h.id;
+        const rem = selectedIdx;
+        buildKitchen(); selectedIdx = rem;
+        applyDetailFade(); buildDetailControls(); updatePrice();
+      });
+      ctlHandle.appendChild(seg);
+    });
+    ctlDoor.classList.add('show');
+    ctlHandle.classList.add('show');
+  }
+
+  /* =====================================================================
+     Overlays — vector projection (10_UI §6 Pillar 3) + clamp
+     ===================================================================== */
+  function project(v3) {
+    const v = v3.clone().project(camera);
+    return {
+      x: (v.x * 0.5 + 0.5) * canvas.clientWidth,
+      y: (-v.y * 0.5 + 0.5) * canvas.clientHeight,
+      behind: v.z > 1
+    };
+  }
+  function clampSafe(p) {
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    return { x: Math.max(40, Math.min(W - 40, p.x)), y: Math.max(80, Math.min(H - 124, p.y)) };
+  }
+  function hideOverlays() { btnMinus.classList.remove('show'); btnPlus.classList.remove('show'); dimLabel.classList.remove('show'); }
+  function showOverlays() { btnMinus.classList.add('show'); btnPlus.classList.add('show'); dimLabel.classList.add('show'); }
+  function updateOverlays() {
+    if (stage === STAGE.CABINET && selectedIdx >= 0) {
+      const g = cabinetGroup.children[selectedIdx + 1];
+      if (g) {
+        const body = g.children[0];
+        const cab = cabinets[selectedIdx];
+        const leftW  = new THREE.Vector3(body.position.x - cab.w/2, body.position.y + 0.05, body.position.z + CABINET_D/2 + 0.04);
+        const rightW = new THREE.Vector3(body.position.x + cab.w/2, body.position.y + 0.05, body.position.z + CABINET_D/2 + 0.04);
+        const topW   = new THREE.Vector3(body.position.x, body.position.y + CABINET_H/2 + 0.18, body.position.z + CABINET_D/2);
+        const l = clampSafe(project(leftW)), r = clampSafe(project(rightW)), tp = clampSafe(project(topW));
+        btnMinus.style.left = l.x + 'px'; btnMinus.style.top = l.y + 'px';
+        btnPlus.style.left = r.x + 'px';  btnPlus.style.top = r.y + 'px';
+        dimLabel.style.left = tp.x + 'px'; dimLabel.style.top = tp.y + 'px';
+        dimLabel.textContent = Math.round(cab.w * 1000) + ' ' + t('mm');
+        if (!tweening) showOverlays();
+      }
+    } else { hideOverlays(); }
+
+    if (stage === STAGE.DETAIL && selectedIdx >= 0) {
+      const g = cabinetGroup.children[selectedIdx + 1];
+      if (g && !tweening) {
+        const body = g.children[0];
+        const d = clampSafe(project(new THREE.Vector3(body.position.x, body.position.y + 0.05, body.position.z + CABINET_D/2 + 0.05)));
+        const h = clampSafe(project(new THREE.Vector3(body.position.x, body.position.y - CABINET_H/2 + 0.10, body.position.z + CABINET_D/2 + 0.05)));
+        ctlDoor.style.left = d.x + 'px'; ctlDoor.style.top = d.y + 'px';
+        ctlHandle.style.left = h.x + 'px'; ctlHandle.style.top = h.y + 'px';
+        if (!ctlDoor.classList.contains('show')) buildDetailControls();
+      }
+    }
+  }
+
+  /* =====================================================================
+     PRICE — real hisob (katalog narxlari)
+     ===================================================================== */
+  function computeEstimate() {
+    const mat = MAT();
+    const totalW = cabinets.reduce((s, c) => s + c.w, 0);
+    /* Muzlatgich — texnika (sotib olinadi, kesilmaydi): smeta/panel hisobidan chiqariladi.
+       Devor uzunligiga (totalW) esa kiradi — joy egallaydi. */
+    const buildable = cabinets.filter(c => c.t !== 'fridge');
+    let facadeArea = 0, bodyArea = 0;
+    buildable.forEach(c => {
+      facadeArea += c.w * CABINET_H;
+      bodyArea   += 2 * (CABINET_D * CABINET_H);
+      bodyArea   += 2 * (c.w * CABINET_D);
+      bodyArea   += 1 * (c.w * CABINET_D);
+      if (c.t === 'drawer') bodyArea += 2 * (c.w * CABINET_D);
+    });
+    const totalPanelArea = facadeArea + bodyArea;
+    const sheets = Math.max(1, packSheets().length);   /* raskroy bilan IZCHIL — bir xil joylashtirish */
+    const materialCost = sheets * mat.sheetPrice;
+
+    const hinge = CATALOG.hinges[budgetTier];
+    const slide = CATALOG.slides[budgetTier];
+    let doorCount = 0, drawerBoxes = 0;
+    buildable.forEach(c => {
+      if (c.t === 'drawer') drawerBoxes += 3;
+      else doorCount += (c.w > DOUBLE_DOOR_W ? 2 : 1);
+    });
+    const hingeCount = doorCount * 2;
+    const hingeCost = hingeCount * hinge.price;
+    const slideSets = drawerBoxes;            /* har tortma — 1 juft rels */
+    const slideCost = slideSets * slide.price;
+
+    let handleCost = 0, handleCount = 0;
+    buildable.forEach(c => {
+      const h = CATALOG.handles.find(x => x.id === c.handle) || CATALOG.handles[0];
+      const cnt = (c.t === 'drawer') ? 3 : (c.w > DOUBLE_DOOR_W ? 2 : 1);
+      handleCount += cnt;
+      handleCost += cnt * h.price;
+    });
+
+    const shelfPinCount = buildable.length * 4;
+    const shelfPinCost = shelfPinCount * CATALOG.misc.shelfPin.price;
+    const minifixCount = buildable.length * 6;
+    const minifixCost = minifixCount * CATALOG.misc.minifix.price;
+    const kromkaMeters = facadeArea > 0 ? Math.round((facadeArea * 3.4) * 10) / 10 : 0;
+    const kromkaCost = Math.round(kromkaMeters * CATALOG.misc.kromkaM.price);
+
+    const total = materialCost + hingeCost + slideCost + handleCost + shelfPinCost + minifixCost + kromkaCost;
+    let parts = 0;
+    buildable.forEach(c => { parts += 6 + 1 + (c.t === 'drawer' ? 3 : (c.w > DOUBLE_DOOR_W ? 2 : 1)); });
+
+    return {
+      mat, totalW, sheets, materialCost,
+      hinge, hingeCount, hingeCost,
+      slide, slideSets, slideCost,
+      handleCount, handleCost,
+      shelfPinCount, shelfPinCost, minifixCount, minifixCost,
+      kromkaMeters, kromkaCost,
+      total, parts, totalPanelArea: Math.round(totalPanelArea * 100) / 100
+    };
+  }
+  function updatePrice() {
+    const est = computeEstimate();
+    priceEl.textContent = est.total.toLocaleString('ru-RU');
+    wallVal.textContent = Math.round(est.totalW * 1000);
+  }
+
+  function changeWidth(delta) {
+    if (selectedIdx < 0) return;
+    const cab = cabinets[selectedIdx];
+    const newW = Math.max(0.3, Math.min(1.2, cab.w + delta));
+    if (Math.abs(newW - cab.w) < 0.001) return;
+    cab.w = newW;
+    const remember = selectedIdx;
+    buildKitchen();
+    selectedIdx = remember;
+    setHighlight(remember);
+    updatePrice();
+  }
+
+  /* =====================================================================
+     Templates
+     ===================================================================== */
+  function renderDots() {
+    dotsEl.innerHTML = '';
+    TEMPLATES.forEach((_, i) => {
+      const hit = document.createElement('div');
+      hit.className = 'dot-hit';
+      const d = document.createElement('div');
+      d.className = 'dot' + (i === templateIdx ? ' active' : '');
+      hit.appendChild(d);
+      hit.addEventListener('click', (e) => { e.stopPropagation(); if (i !== templateIdx) loadTemplate(i); });
+      dotsEl.appendChild(hit);
+    });
+  }
+  function loadTemplate(i) {
+    templateIdx = (i + TEMPLATES.length) % TEMPLATES.length;
+    cabinets = TEMPLATES[templateIdx].cabs.map(c => ({ ...c, door:'flat', handle:'skoba' }));
+    buildKitchen();
+    selectedIdx = -1;
+    clearHighlight();
+    gotoStage(STAGE.TEMPLATES);
+    updatePrice();
+    renderDots();
+    showHint(t(TEMPLATES[templateIdx].key));
+  }
+
+  /* =====================================================================
+     Material drawer
+     ===================================================================== */
+  function renderSwatches() {
+    swatchesEl.innerHTML = '';
+    CATALOG.facades.forEach((m, i) => {
+      const perM2 = Math.round(m.sheetPrice / SHEET_M2);
+      const s = document.createElement('div');
+      s.className = 'swatch' + (i === materialIdx ? ' active' : '');
+      s.innerHTML =
+        '<div class="chip" style="background:#' + m.facade.toString(16).padStart(6,'0') + '"></div>' +
+        '<div class="meta"><div class="nm">' + t(m.nameKey) + '</div>' +
+        '<div class="pr">' + perM2.toLocaleString('ru-RU') + ' ' + t('perM2') + ' · ' + m.thickness + t('mm') + '</div></div>';
+      s.addEventListener('click', () => {
+        materialIdx = i;
+        const rem = selectedIdx;
+        buildKitchen();
+        selectedIdx = rem;
+        if (stage === STAGE.DETAIL) applyDetailFade();
+        else if (selectedIdx >= 0) setHighlight(selectedIdx);
+        renderSwatches();
+        updatePrice();
+        setTimeout(closeDrawer, 200);
+      });
+      swatchesEl.appendChild(s);
+    });
+  }
+  function openDrawer() { drawer.classList.add('show'); }
+  function closeDrawer() {
+    drawer.classList.remove('show');
+    if (stage === STAGE.MATERIAL) gotoStage(selectedIdx >= 0 ? STAGE.CABINET : STAGE.TEMPLATES);
+  }
+  materialBtn.addEventListener('click', () => {
+    if (drawer.classList.contains('show')) closeDrawer();
+    else { openDrawer(); if (stage !== STAGE.DETAIL) gotoStage(STAGE.MATERIAL); }
+  });
+
+  /* =====================================================================
+     Hint
+     ===================================================================== */
+  let hintTimer = null;
+  function showHint(text, dur) {
+    hint.textContent = text;
+    hint.classList.add('show');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => hint.classList.remove('show'), dur || 2400);
+  }
+
+  /* =====================================================================
+     Stage 6 — hero review (10_UI §4/§8: hero shot + price headline + CTA)
+     ===================================================================== */
+  let autoRotate = false, autoRotateAngle = 0;
+  function enterStage6() {
+    gotoStage(STAGE.LOCK);
+    setLighting(LIGHT_WARM);                       /* 10_UI §4: warmer lighting */
+    const est = computeEstimate();
+    $('s6-amount-val').textContent = est.total.toLocaleString('ru-RU');
+    $('s6-meta').textContent =
+      cabinets.length + ' ' + t('st_cabs') + ' · ' + est.sheets + ' ' + t('st_sheets') +
+      ' · ' + est.parts + ' ' + t('parts');
+    /* Hero kamera: z+2.5, y+1.2 (10_UI §8) — keyin auto-rotate */
+    tweenTo(new THREE.Vector3(0, 1.2, 2.5), new THREE.Vector3(0, 0.5, -0.2), 560);
+    setTimeout(() => {
+      if (stage === STAGE.LOCK) {
+        autoRotateAngle = 0;   /* angle 0 → (sin0·r, cy, cos0·r) = (0, 1.2, 2.5) = tween tugagan joy */
+        autoRotate = true;                          /* 10_UI §8: slow auto-rotate */
+      }
+    }, 580);
+    stage6El.classList.add('show');
+    stage6El.style.pointerEvents = 'auto';
+  }
+  function exitStage6() {
+    autoRotate = false;
+    stage6El.classList.remove('show');
+    stage6El.style.pointerEvents = 'none';
+    setLighting(LIGHT_NORMAL);
+    selectCabinet(-1);
+  }
+  $('s6-back').addEventListener('click', exitStage6);
+  $('s6-cta').addEventListener('click', openQuote);
+
+  /* 10_UI §8: Stage 1 — "Изменить размер" → devor o'lchamini aylantiradi (Resize verb).
+     Stage 2+ — "Сохранить раскрой" → Stage 6 (Lock). */
+  saveBtn.addEventListener('click', () => {
+    if (stage === STAGE.ARRIVAL) cycleWall();
+    else enterStage6();
+  });
+
+  /* =====================================================================
+     Quote sheet — generated output (smeta, katalog narxlari)
+     ===================================================================== */
+  function openQuote() {
+    const est = computeEstimate();
+    $('q-total-val').textContent = est.total.toLocaleString('ru-RU');
+    $('q-sub').textContent =
+      cabinets.length + ' ' + t('st_cabs') + ' · ' + est.parts + ' ' + t('parts') + ' · ' + est.totalPanelArea + ' ' + t('area');
+    $('q-stats').innerHTML =
+      stat(cabinets.length, t('st_cabs')) +
+      stat(est.sheets, t('st_sheets')) +
+      stat(est.hingeCount + est.handleCount + est.slideSets, t('st_hw'));
+
+    const rows1 = [ row(est.mat.catalogName, est.sheets + ' ' + t('sheet') + ' × ' + est.mat.sheetPrice.toLocaleString('ru-RU'), est.materialCost) ];
+    const rows2 = [ row(est.hinge.name, est.hingeCount + ' ' + t('pcs') + ' × ' + est.hinge.price.toLocaleString('ru-RU'), est.hingeCost) ];
+    if (est.slideSets > 0) {
+      rows2.push(row(est.slide.name, est.slideSets + ' ' + t('set') + ' × ' + est.slide.price.toLocaleString('ru-RU'), est.slideCost));
+    }
+    rows2.push(row(t('handles'), est.handleCount + ' ' + t('pcs'), est.handleCost));
+    rows2.push(row(t('minifix'), est.minifixCount + ' ' + t('pcs') + ' × ' + CATALOG.misc.minifix.price.toLocaleString('ru-RU'), est.minifixCost));
+    rows2.push(row(t('shelfPin'), est.shelfPinCount + ' ' + t('pcs'), est.shelfPinCost));
+    /* Edge banding — material rangiga avtomat moslangan (10_UI §1 derive) */
+    const rows3 = [ row(t('kromkaName') + ' (' + est.mat.kromkaName + ' — ' + t('kromkaMatch') + ')',
+                        est.kromkaMeters + ' ' + t('meter') + ' × ' + CATALOG.misc.kromkaM.price.toLocaleString('ru-RU'),
+                        est.kromkaCost) ];
+
+    $('q-body').innerHTML =
+      section(t('secMaterial'), rows1) +
+      section(t('secHardware'), rows2) +
+      section(t('secKromka'), rows3);
+    $('q-note').textContent = t('qNote');
+    quote.classList.add('show');
+  }
+  function stat(v, k) { return '<div class="q-stat"><div class="v">' + v + '</div><div class="k">' + k + '</div></div>'; }
+  function section(title, rows) { return '<div class="q-section"><div class="q-h">' + title + '</div>' + rows.join('') + '</div>'; }
+  function row(name, sub, val) {
+    return '<div class="q-row"><div class="q-name">' + name +
+      (sub ? ' <small>' + sub + '</small>' : '') + '</div>' +
+      '<div class="q-val">' + val.toLocaleString('ru-RU') + '</div></div>';
+  }
+  function closeQuote() { quote.classList.remove('show'); }
+  $('q-close').addEventListener('click', closeQuote);
+  /* =====================================================================
+     Demo: real fayl yuklab olish — pure JS, backend'siz (10_UI §8 "generate outputs")
+     ===================================================================== */
+  function downloadFile(filename, content, mime) {
+    const blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function wallMM() { return Math.round(cabinets.reduce((s, c) => s + c.w, 0) * 1000); }
+
+  /* Raskroy DXF — har panel to'rtburchak (LINE), demo darajasi.
+     Teshik/kromka qatlamlari YO'Q — ular Python DXF engine vazifasi (V1, §9 CNC test). */
+  /* Har kabinetning kesiladigan panellari — [kenglik, balandlik, nom] (mm) */
+  function collectPanels() {
+    const panels = [];
+    cabinets.forEach((cab, ci) => {
+      if (cab.t === 'fridge') return;   /* muzlatgich — texnika, kesilmaydi (panel yo'q) */
+      const W = Math.round(cab.w * 1000), H = 850, D = 560, t = MAT().thickness, k = 'K' + (ci + 1);
+      panels.push([D, H, k + ' Yon-L'], [D, H, k + ' Yon-R']);
+      panels.push([W - 2*t, D, k + ' Tag'], [W - 2*t, D, k + ' Tepa']);
+      panels.push([W - 2*t, D - 50, k + ' Polka'], [W - 2*t, 100, k + ' Sarga']);
+      panels.push([W - 20, H - 20, k + ' Orqa-HDF']);
+      if (cab.t === 'drawer') {
+        for (let nn = 1; nn <= 3; nn++) panels.push([W - 8, Math.round((H - 40) / 3), k + ' Fasad-' + nn]);
+      } else if (W > 500) {
+        panels.push([Math.round(W/2 - 4), H - 30, k + ' Fasad-L'], [Math.round(W/2 - 4), H - 30, k + ' Fasad-R']);
+      } else {
+        panels.push([W - 8, H - 30, k + ' Fasad']);
+      }
+    });
+    return panels;
+  }
+
+  /* Raskroy bin-packing — shelf FFDH algoritmi (balandlik kamayishi bo'yicha).
+     Panellarni 2800x2070 LDSP listlariga zich joylaydi, kerf (arra eni) bilan. */
+  const SHEET_W = 2800, SHEET_H = 2070, KERF = 4, SHEET_M = 12;
+  function packSheets() {
+    const usableW = SHEET_W - 2*SHEET_M, usableH = SHEET_H - 2*SHEET_M;
+    const items = collectPanels().map(([w, h, label]) => ({ w, h, label }))
+                                 .sort((a, b) => b.h - a.h);
+    const sheets = [];
+    items.forEach(it => {
+      let done = false;
+      for (const sh of sheets) {
+        for (const shelf of sh.shelves) {
+          if (it.h <= shelf.h && shelf.usedW + it.w <= usableW) {
+            sh.placed.push({ x: shelf.usedW, y: shelf.y, w: it.w, h: it.h, label: it.label });
+            shelf.usedW += it.w + KERF;
+            done = true; break;
+          }
+        }
+        if (done) break;
+        const usedH = sh.shelves.reduce((s, x) => s + x.h + KERF, 0);
+        if (usedH + it.h <= usableH) {
+          sh.shelves.push({ y: usedH, h: it.h, usedW: it.w + KERF });
+          sh.placed.push({ x: 0, y: usedH, w: it.w, h: it.h, label: it.label });
+          done = true; break;
+        }
+      }
+      if (!done) {
+        sheets.push({
+          shelves: [{ y: 0, h: it.h, usedW: it.w + KERF }],
+          placed: [{ x: 0, y: 0, w: it.w, h: it.h, label: it.label }]
+        });
+      }
+    });
+    return sheets;
+  }
+
+  /* Raskroy DXF — panellar haqiqiy listlarga joylangan holda (demo: teshiksiz).
+     To'liq CNC-DXF (teshik, kromka) — Python engine vazifasi (V1, §9 CNC test). */
+  function buildDXF() {
+    const sheets = packSheets();
+    let e = '';
+    const E = (c, v) => { e += c + '\n' + v + '\n'; };
+    const seg = (x1,y1,x2,y2,L) => { E(0,'LINE'); E(8,L); E(10,x1); E(20,y1); E(30,0); E(11,x2); E(21,y2); E(31,0); };
+    const rect = (x,y,w,h,L) => { seg(x,y,x+w,y,L); seg(x+w,y,x+w,y+h,L); seg(x+w,y+h,x,y+h,L); seg(x,y+h,x,y,L); };
+    const txt = (x,y,h,s,L) => { E(0,'TEXT'); E(8,L); E(10,x); E(20,y); E(30,0); E(40,h); E(1,s); };
+    sheets.forEach((sh, si) => {
+      const ox = si * (SHEET_W + 320);                          /* listlar yonma-yon */
+      rect(ox, 0, SHEET_W, SHEET_H, 'SHEET');                    /* list chegarasi */
+      txt(ox + 20, SHEET_H + 70, 90, 'LIST ' + (si + 1) + '  -  ' + SHEET_W + ' x ' + SHEET_H + ' mm', 'SHEET');
+      sh.placed.forEach(p => {
+        const px = ox + SHEET_M + p.x;
+        const py = SHEET_H - SHEET_M - p.y - p.h;                /* yuqoridan pastga joylash */
+        rect(px, py, p.w, p.h, 'PANEL');
+        const lh = Math.min(40, Math.max(18, Math.round(p.h * 0.26)));
+        txt(px + 14, py + p.h / 2 + 4, lh, p.label, 'TEXT');
+        txt(px + 14, py + p.h / 2 - lh - 2, Math.round(lh * 0.8), p.w + ' x ' + p.h, 'TEXT');
+      });
+    });
+    return '0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1009\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n' +
+           '0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n3\n' +
+           '0\nLAYER\n2\nSHEET\n70\n0\n62\n7\n6\nCONTINUOUS\n' +
+           '0\nLAYER\n2\nPANEL\n70\n0\n62\n5\n6\nCONTINUOUS\n' +
+           '0\nLAYER\n2\nTEXT\n70\n0\n62\n3\n6\nCONTINUOUS\n' +
+           '0\nENDTAB\n0\nENDSEC\n' +
+           '0\nSECTION\n2\nENTITIES\n' + e + '0\nENDSEC\n0\nEOF\n';
+  }
+
+  /* Smeta — matn fayl (mijozga yuborish uchun) */
+  function buildSmetaText() {
+    const est = computeEstimate(), n = x => x.toLocaleString('ru-RU'), L = [];
+    L.push('МЕБЕЛЬЧИ — СМЕТА · РАСКРОЙ');
+    L.push('========================================');
+    L.push('Стена: ' + wallMM() + ' мм');
+    L.push('Шкафов: ' + cabinets.length + '   Деталей: ' + est.parts + '   Площадь: ' + est.totalPanelArea + ' м²');
+    L.push('');
+    L.push('МАТЕРИАЛ');
+    L.push('  ' + t(est.mat.nameKey) + '  —  ' + est.sheets + ' лист x ' + n(est.mat.sheetPrice) + '  =  ' + n(est.materialCost) + ' сум');
+    L.push('');
+    L.push('ФУРНИТУРА');
+    L.push('  ' + est.hinge.name + '  —  ' + est.hingeCount + ' шт  =  ' + n(est.hingeCost) + ' сум');
+    if (est.slideSets > 0) L.push('  ' + est.slide.name + '  —  ' + est.slideSets + ' компл  =  ' + n(est.slideCost) + ' сум');
+    L.push('  Ручки  —  ' + est.handleCount + ' шт  =  ' + n(est.handleCost) + ' сум');
+    L.push('  Стяжка Minifix  —  ' + est.minifixCount + ' шт  =  ' + n(est.minifixCost) + ' сум');
+    L.push('  Полкодержатель  —  ' + est.shelfPinCount + ' шт  =  ' + n(est.shelfPinCost) + ' сум');
+    L.push('');
+    L.push('КРОМКА');
+    L.push('  ПВХ 2мм  —  ' + est.kromkaMeters + ' м.п.  =  ' + n(est.kromkaCost) + ' сум');
+    L.push('');
+    L.push('========================================');
+    L.push('ИТОГО:  ' + n(est.total) + ' сум');
+    L.push('');
+    L.push('Цены — каталог eman.uz / kis.uz.');
+    L.push('Итог может измениться на 5-8% после оптимизации раскроя.');
+    return '﻿' + L.join('\r\n');
+  }
+
+  $('q-dxf').addEventListener('click', () => {
+    downloadFile('kuxnya_' + wallMM() + 'mm_raskroy.dxf', buildDXF(), 'application/dxf');
+    showHintQuote(t('msgDxf'));
+  });
+  $('q-share').addEventListener('click', () => {
+    downloadFile('smeta_' + wallMM() + 'mm.txt', buildSmetaText(), 'text/plain;charset=utf-8');
+    showHintQuote(t('msgShare'));
+  });
+  function showHintQuote(msg) {
+    const sub = $('q-sub');
+    const old = sub.textContent;
+    sub.textContent = msg;
+    setTimeout(() => { sub.textContent = old; }, 2200);
+  }
+
+  /* =====================================================================
+     Language
+     ===================================================================== */
+  function applyStaticLang() {
+    document.documentElement.lang = lang;
+    $('wall-lbl').textContent = t('wall');
+    $('wall-unit').textContent = t('mm');
+    $('price-cur').textContent = t('sum');
+    $('material-btn-lbl').textContent = t('material');
+    drawer.querySelector('h3').textContent = t('facadeMaterial');
+    $('c-q').textContent = t('confirmQ');
+    $('c-cancel').textContent = t('cancel');
+    $('c-del').textContent = t('del');
+    $('s6-label').textContent = t('s6label');
+    $('s6-cur').textContent = t('sum');
+    $('s6-cta').textContent = t('s6cta');
+    $('q-title').textContent = t('qTitle');
+    $('q-cur').textContent = t('cur');
+    $('q-share').textContent = t('qShare');
+    $('q-dxf').textContent = t('qDxf');
+    saveBtn.textContent = (stage === STAGE.ARRIVAL) ? t('changeSize') : t('saveRaskroy');
+    swipeCue.textContent = '← ' + (lang === 'ru' ? 'варианты' : 'variantlar') + ' →';
+    renderSwatches();
+  }
+  langEl.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      lang = b.dataset.lang;
+      langEl.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      applyStaticLang();
+    });
+  });
+
+  /* =====================================================================
+     Touch / gesture
+     ===================================================================== */
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  let isSwiping = false, longPressTimer = null;
+  let lastTapTime = 0, lastTapIdx = -2, pinchStartDist = 0;
+  const DOUBLE_TAP_MS = 340;
+  const SWIPE_THRESHOLD = 40;   /* 10_UI §8 Stage 2 */
+  let pendingSwapTimer = null;
+
+  function dist2(a, b) { const dx=a.clientX-b.clientX, dy=a.clientY-b.clientY; return Math.sqrt(dx*dx+dy*dy); }
+
+  function onDown(e) {
+    if (drawer.classList.contains('show') || quote.classList.contains('show') || stage === STAGE.LOCK) return;
+    if (e.touches && e.touches.length === 2) {
+      pinchStartDist = dist2(e.touches[0], e.touches[1]);
+      clearTimeout(longPressTimer);
+      return;
+    }
+    const p = readPointer(e);
+    touchStartX = p.x; touchStartY = p.y;
+    touchStartTime = performance.now();
+    isSwiping = false;
+    longPressTimer = setTimeout(() => {
+      const idx = hitCabinet();
+      if (idx >= 0 && (stage === STAGE.CABINET || stage === STAGE.TEMPLATES || stage === STAGE.ARRIVAL)) {
+        if (idx !== selectedIdx) { selectedIdx = idx; setHighlight(idx); }
+        openDrawer();
+        gotoStage(STAGE.MATERIAL);
+        if ('vibrate' in navigator) navigator.vibrate(8);
+      }
+    }, 460);
+  }
+  function onMove(e) {
+    if (e.touches && e.touches.length === 2) {
+      const d = dist2(e.touches[0], e.touches[1]);
+      const delta = d - pinchStartDist;
+      if (stage === STAGE.CABINET && selectedIdx >= 0 && delta > 60) { enterDetail(selectedIdx); pinchStartDist = d; }
+      else if (stage === STAGE.DETAIL && delta < -60) { exitDetail(); pinchStartDist = d; }
+      return;
+    }
+    if (e.touches) {
+      const tt = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const dx = (tt.clientX - rect.left) - touchStartX;
+      const dy = (tt.clientY - rect.top) - touchStartY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearTimeout(longPressTimer);
+      if ((stage === STAGE.TEMPLATES || stage === STAGE.ARRIVAL)
+          && Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        isSwiping = true;
+      }
+    }
+  }
+  function onUp(e) {
+    clearTimeout(longPressTimer);
+    if (drawer.classList.contains('show') || quote.classList.contains('show') || stage === STAGE.LOCK) return;
+    const elapsed = performance.now() - touchStartTime;
+
+    if (isSwiping) {
+      const ev = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e;
+      const rect = canvas.getBoundingClientRect();
+      const dx = (ev.clientX - rect.left) - touchStartX;
+      if (dx < -SWIPE_THRESHOLD) loadTemplate(templateIdx + 1);
+      else if (dx > SWIPE_THRESHOLD) loadTemplate(templateIdx - 1);
+      isSwiping = false;
+      return;
+    }
+    if (tweening) return;
+    if (elapsed > 380) return;
+
+    readPointer(e);
+    const idx = hitCabinet();
+
+    if (stage === STAGE.DETAIL) { if (idx < 0) exitDetail(); return; }
+    if (idx < 0) { hideConfirm(); if (selectedIdx >= 0) selectCabinet(-1); return; }
+
+    const now = performance.now();
+    if (stage === STAGE.CABINET && idx === selectedIdx) {
+      if (now - lastTapTime < DOUBLE_TAP_MS && lastTapIdx === idx) {
+        clearTimeout(pendingSwapTimer); pendingSwapTimer = null;
+        lastTapTime = 0; lastTapIdx = -2;
+        askRemove(idx);
+      } else {
+        lastTapTime = now; lastTapIdx = idx;
+        hideConfirm();
+        clearTimeout(pendingSwapTimer);
+        pendingSwapTimer = setTimeout(() => { pendingSwapTimer = null; swapType(idx); }, DOUBLE_TAP_MS);
+      }
+      return;
+    }
+    clearTimeout(pendingSwapTimer); pendingSwapTimer = null;
+    lastTapTime = 0; lastTapIdx = -2;
+    hideConfirm();
+    selectCabinet(idx);
+  }
+
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
+  canvas.addEventListener('pointerup', onUp);
+  canvas.addEventListener('pointercancel', () => { clearTimeout(longPressTimer); isSwiping = false; });
+  canvas.addEventListener('touchstart', onDown, { passive: true });
+  canvas.addEventListener('touchmove', onMove, { passive: true });
+  canvas.addEventListener('wheel', (e) => {
+    if (drawer.classList.contains('show') || quote.classList.contains('show') || stage === STAGE.LOCK) return;
+    if (stage === STAGE.CABINET && selectedIdx >= 0 && e.deltaY < -8) enterDetail(selectedIdx);
+    else if (stage === STAGE.DETAIL && e.deltaY > 8) exitDetail();
+  }, { passive: true });
+
+  btnMinus.addEventListener('pointerdown', (e) => { e.stopPropagation(); changeWidth(-0.05); });
+  btnPlus.addEventListener('pointerdown',  (e) => { e.stopPropagation(); changeWidth(0.05); });
+
+  const WALL_SIZES = [1800, 2100, 2400, 2700, 3000, 3600];
+  let wallIdx = 2;
+  function cycleWall() {
+    wallIdx = (wallIdx + 1) % WALL_SIZES.length;
+    const targetM = WALL_SIZES[wallIdx] / 1000;
+    const currentTotal = cabinets.reduce((s, c) => s + c.w, 0);
+    const scale = targetM / currentTotal;
+    cabinets.forEach(c => { c.w = Math.max(0.3, Math.min(1.2, c.w * scale)); });
+    const rem = selectedIdx;
+    buildKitchen();
+    selectedIdx = rem;
+    if (selectedIdx >= 0) setHighlight(selectedIdx);
+    updatePrice();
+    /* "Изменить размер" / wall pill — FAQAT o'lcham o'zgartiradi.
+       Stage o'zgarmaydi, smeta bilan bog'liq emas.
+       Stage 1 dan chiqish: kabinetga tegish yoki swipe orqali. */
+    pulseWallPill();
+    showHint(t('wallMsg') + ' ' + WALL_SIZES[wallIdx] + ' ' + t('mm'));
+  }
+  /* Headerdagi "стена" pill ni puls qildirish — foydalanuvchiga o'lcham
+     QAYERDA yashashini o'rgatadi (tugma → header pill bog'lanishi). */
+  function pulseWallPill() {
+    wallPill.classList.remove('pulse');
+    void wallPill.offsetWidth;
+    wallPill.classList.add('pulse');
+  }
+  wallPill.addEventListener('click', cycleWall);
+
+  document.addEventListener('click', (e) => {
+    if (drawer.classList.contains('show') && !drawer.contains(e.target)
+        && e.target !== materialBtn && !materialBtn.contains(e.target)) {
+      closeDrawer();
+    }
+  });
+
+  /* =====================================================================
+     Animation loop
+     ===================================================================== */
+  function animate() {
+    if (tweening) {
+      const tt = (performance.now() - tweenStart) / tweenDur;
+      if (tt >= 1) {
+        camera.position.copy(camTo);
+        currentLook.copy(lookTo);
+        camera.lookAt(currentLook);
+        tweening = false;
+      } else {
+        const e = easeOutCubic(tt);
+        camera.position.lerpVectors(camFrom, camTo, e);
+        currentLook.lerpVectors(lookFrom, lookTo, e);
+        camera.lookAt(currentLook);
+      }
+    } else if (autoRotate && stage === STAGE.LOCK) {
+      /* 10_UI §8 Stage 6 — sekin avto-aylanish */
+      autoRotateAngle += 0.0026;
+      const r = 2.5, cy = 1.2;   /* tween targeti bilan bir xil — sakramaslik uchun */
+      camera.position.set(Math.sin(autoRotateAngle) * r, cy, Math.cos(autoRotateAngle) * r);
+      currentLook.set(0, 0.5, -0.2);
+      camera.lookAt(currentLook);
+    }
+    updateOverlays();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  /* =====================================================================
+     Boot
+     ===================================================================== */
+  applyStaticLang();
+  renderDots();
+  renderSwatches();
+  buildKitchen();
+  updatePrice();
+  gotoStage(STAGE.ARRIVAL);
+  animate();
+
+  /* 10_UI §4 Stage 1: foydalanuvchi biror narsa qilguncha ARRIVAL'da turadi.
+     Avtomat o'tish YO'Q — faqat hint ko'rsatamiz. */
+  setTimeout(() => { showHint(t('hintStart')); }, 700);
+  setTimeout(() => {
+    if (stage === STAGE.ARRIVAL) {
+      swipeCue.classList.add('show');
+      setTimeout(() => swipeCue.classList.remove('show'), 2400);
+    }
+  }, 3200);
+})();
+</script>
+</body>
+</html>
