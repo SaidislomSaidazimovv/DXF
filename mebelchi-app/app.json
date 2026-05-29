@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Mebelchi",
+    "slug": "mebelchi",
+    "version": "1.0.0",
+    "scheme": "mebelchi",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true,
+      "baseUrl": "/DXF/app"
+    },
+    "splash": {
+      "backgroundColor": "#1a1a1c",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "uz.mebelchi.app"
+    },
+    "android": {
+      "package": "uz.mebelchi.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#e8e3d7"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ]
+  }
+}
