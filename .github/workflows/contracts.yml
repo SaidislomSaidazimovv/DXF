@@ -28,13 +28,13 @@ jobs:
           pip install jsonschema ezdxf
 
       - name: Validate JSON schemas + fixtures + foreign keys
-        run: python tests/validate_contracts.py
+        run: python engine/tests/validate_contracts.py
 
       - name: Verify transform math (CONVENTIONS §3 vs apply_transform)
-        run: python tests/verify_transform_math.py
+        run: python engine/tests/verify_transform_math.py
 
       - name: Schema migration test (build_cabinet output → schema)
-        run: python tests/test_schema_migration.py
+        run: python engine/tests/test_schema_migration.py
 
   pipeline:
     name: End-to-end pipeline tests
@@ -55,25 +55,25 @@ jobs:
           pip install jsonschema ezdxf
 
       - name: Transform unit tests
-        run: python test_transform.py
+        run: python engine/test_transform.py
 
       - name: Basic DXF (2 mirrored side panels)
-        run: python test_dxf.py
+        run: python engine/test_dxf.py
 
       - name: Rotation DXF (4 rotations on one sheet)
-        run: python test_rotation.py
+        run: python engine/test_rotation.py
 
       - name: Edge banding DXF (4 banding configs)
-        run: python test_banding.py
+        run: python engine/test_banding.py
 
       - name: Single cabinet → DXF
-        run: python test_cabinet.py
+        run: python engine/test_cabinet.py
 
       - name: Multi-cabinet kitchen → DXF (with run-time validate_parts)
-        run: python test_project.py
+        run: python engine/test_project.py
 
       - name: 3D HTML preview generation
-        run: python test_3d.py
+        run: python engine/test_3d.py
 
       - name: DXF entity verification (read back all outputs)
-        run: python verify_outputs.py
+        run: python engine/verify_outputs.py
