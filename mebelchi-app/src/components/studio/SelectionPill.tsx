@@ -30,6 +30,28 @@ export function SelectionPill() {
   const selectUpper = useUI((s) => s.selectUpper);
   const resizeCabinet = useUI((s) => s.resizeCabinet);
 
+  /* Per-cabinet current values + global fallbacks */
+  const globalDoorStyle = useUI((s) => s.globalDoorStyle);
+  const sinkTypeDefault = useUI((s) => s.sinkType);
+  const stoveTypeDefault = useUI((s) => s.stoveType);
+  const cabinetDoorStyle = useUI((s) => s.cabinetDoorStyle);
+  const cabinetHandle = useUI((s) => s.cabinetHandle);
+  const cabinetSink = useUI((s) => s.cabinetSink);
+  const cabinetStove = useUI((s) => s.cabinetStove);
+  const cabinetFaucet = useUI((s) => s.cabinetFaucet);
+  const cabinetFaucetFinish = useUI((s) => s.cabinetFaucetFinish);
+  const cabinetBurners = useUI((s) => s.cabinetBurners);
+
+  /* Direct setters for chip controls */
+  const setDoorStyle = useUI((s) => s.setCabinetDoorStyle);
+  const setHandle = useUI((s) => s.setCabinetHandle);
+  const setSink = useUI((s) => s.setCabinetSink);
+  const setStove = useUI((s) => s.setCabinetStove);
+  const setFaucetStyle = useUI((s) => s.setCabinetFaucetStyle);
+  const setFaucetFinish = useUI((s) => s.setCabinetFaucetFinish);
+  const setBurners = useUI((s) => s.setCabinetBurners);
+  const setDrawerCount = useUI((s) => s.setCabinetDrawerCount);
+
   const t = useT();
   const insets = useSafeAreaInsets();
   /* Position the pill ABOVE the bottom bar with margin, accounting for
@@ -139,10 +161,120 @@ export function SelectionPill() {
       {/* Divider */}
       <View style={styles.divider} />
 
-      {/* Hint — facade colour is chosen via the bottom "material" button,
-          so we don't duplicate the swatches here. */}
-      <Text style={styles.hint}>{t('pill_hint')}</Text>
+      {/* Explicit fixture controls — depend on cabinet type. */}
+      {(() => {
+        const type = cab.type;
+        const isDrawer = type === 'drawer3' || type === 'drawer4';
+        const hasSink = type === 'sink' || type === 'sink_stove';
+        const hasStove = type === 'stove' || type === 'sink_stove';
+        const hasDoor = !isDrawer && !hasSink && !hasStove && type !== 'fridge';
+
+        return (
+          <View>
+            {hasDoor && (
+              <>
+                <ChipRow
+                  label="ДВЕРЬ"
+                  options={[['flat', 'Гладкая'], ['shaker', 'Шейкер'], ['grooved', 'Фрезеровка']]}
+                  value={cabinetDoorStyle[cab.id] ?? globalDoorStyle}
+                  onPick={(v) => setDoorStyle(cab.id, v as any)}
+                />
+                <ChipRow
+                  label="РУЧКА"
+                  options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}
+                  value={cabinetHandle[cab.id] ?? 'bar'}
+                  onPick={(v) => setHandle(cab.id, v as any)}
+                />
+              </>
+            )}
+
+            {isDrawer && (
+              <ChipRow
+                label="ЯЩИКИ"
+                options={[['drawer3', '3 ящика'], ['drawer4', '4 ящика']]}
+                value={type}
+                onPick={(v) => setDrawerCount(cab.id, v === 'drawer4' ? 4 : 3)}
+              />
+            )}
+
+            {hasSink && (
+              <>
+                <ChipRow
+                  label="МОЙКА"
+                  options={[['single', 'Одинарная'], ['double', 'Двойная']]}
+                  value={cabinetSink[cab.id] ?? sinkTypeDefault}
+                  onPick={(v) => setSink(cab.id, v as any)}
+                />
+                <ChipRow
+                  label="КРАН · форма"
+                  options={[['arch', 'Дуга'], ['straight', 'Прямой'], ['pull', 'Выдвижной']]}
+                  value={cabinetFaucet[cab.id] ?? 'arch'}
+                  onPick={(v) => setFaucetStyle(cab.id, v as any)}
+                />
+                <ChipRow
+                  label="КРАН · цвет"
+                  options={[['chrome', 'Хром'], ['black', 'Чёрный'], ['gold', 'Золото']]}
+                  value={cabinetFaucetFinish[cab.id] ?? 'chrome'}
+                  onPick={(v) => setFaucetFinish(cab.id, v as any)}
+                />
+              </>
+            )}
+
+            {hasStove && (
+              <>
+                <ChipRow
+                  label="ПЛИТА"
+                  options={[['induction', 'Индукция'], ['gas', 'Газ']]}
+                  value={cabinetStove[cab.id] ?? stoveTypeDefault}
+                  onPick={(v) => setStove(cab.id, v as any)}
+                />
+                <ChipRow
+                  label="КОНФОРКИ"
+                  options={[['4', '4 зоны'], ['2', '2 зоны']]}
+                  value={String(cabinetBurners[cab.id] ?? 4)}
+                  onPick={(v) => setBurners(cab.id, v === '2' ? 2 : 4)}
+                />
+              </>
+            )}
+
+            <Text style={styles.hint}>Цвет — кнопкой «material» внизу</Text>
+          </View>
+        );
+      })()}
     </Animated.View>
+  );
+}
+
+/** A labelled row of selectable chips. */
+function ChipRow({
+  label,
+  options,
+  value,
+  onPick,
+}: {
+  label: string;
+  options: [string, string][];
+  value: string;
+  onPick: (value: string) => void;
+}) {
+  return (
+    <View style={styles.chipBlock}>
+      <Text style={styles.chipLabel}>{label}</Text>
+      <View style={styles.chipRow}>
+        {options.map(([val, txt]) => {
+          const active = val === value;
+          return (
+            <Pressable
+              key={val}
+              onPress={() => { hapticTap(); onPick(val); }}
+              style={[styles.chip, active && styles.chipActive]}
+            >
+              <Text style={[styles.chipTxt, active && styles.chipTxtActive]}>{txt}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -190,5 +322,20 @@ const styles = StyleSheet.create({
   widthVal:  { ...TYPE.wallPill, color: COLORS.ink, fontFamily: 'monospace' },
   widthUnit: { ...TYPE.body, color: COLORS.inkMuted, fontSize: 12 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.line, marginVertical: SPACE.md },
-  hint: { ...TYPE.hint, color: COLORS.inkFaint, fontSize: 10, textAlign: 'center' },
+  hint: { ...TYPE.hint, color: COLORS.inkFaint, fontSize: 10, textAlign: 'center', marginTop: SPACE.xs },
+
+  chipBlock: { marginBottom: SPACE.sm },
+  chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 4 },
+  chipRow: { flexDirection: 'row', gap: SPACE.xs, flexWrap: 'wrap' },
+  chip: {
+    paddingHorizontal: SPACE.md,
+    paddingVertical: 6,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+    borderColor: COLORS.lineStrong,
+    backgroundColor: COLORS.bgSoft,
+  },
+  chipActive: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  chipTxt: { ...TYPE.body, color: COLORS.inkSoft, fontSize: 12 },
+  chipTxtActive: { color: '#fff' },
 });

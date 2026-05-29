@@ -16,7 +16,7 @@
 import React from 'react';
 import type { ThreeEvent } from '@/lib/three/r3f';
 import { GEOMETRY } from '@/types/ui';
-import type { SinkType, FaucetStyle } from '@/types/ui';
+import type { SinkType, FaucetStyle, FaucetFinish } from '@/types/ui';
 
 interface Props {
   xOffset: number;
@@ -24,6 +24,7 @@ interface Props {
   worktopTopY: number;
   sinkType: SinkType;
   faucetStyle?: FaucetStyle;
+  faucetFinish?: FaucetFinish;
   onPress?: () => void;
   onFaucetPress?: () => void;
 }
@@ -33,7 +34,14 @@ const { CABINET_DEPTH } = GEOMETRY;
 const RIM_COLOR    = 0xc8ccd0;   // brushed stainless steel
 const BASIN_COLOR  = 0x2c2c2a;   // dark interior (hole effect)
 const DRAIN_COLOR  = 0x8a8e92;
-const CHROME_COLOR = 0xbfc4c8;   // faucet body
+const CHROME_COLOR = 0xbfc4c8;   // faucet body (default chrome)
+
+/** Faucet metal colour by finish. */
+const FAUCET_FINISH_COLOR: Record<FaucetFinish, number> = {
+  chrome: 0xbfc4c8,
+  black:  0x2a2a2c,
+  gold:   0xc9a84a,
+};
 
 function SingleBasin({
   cx, basinW, basinD, rimY, rimThickness, depth,
@@ -93,11 +101,13 @@ function SingleBasin({
  */
 function Faucet({
   style,
+  finish = 'chrome',
   rimY,
   rimD,
   onPress,
 }: {
   style: FaucetStyle;
+  finish?: FaucetFinish;
   rimY: number;
   rimD: number;
   onPress?: () => void;
@@ -107,8 +117,11 @@ function Faucet({
   const press = onPress
     ? (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onPress(); }
     : undefined;
+  const metal = FAUCET_FINISH_COLOR[finish];
+  /* gold/black read better slightly less mirror-like than chrome */
+  const rough = finish === 'chrome' ? 0.18 : 0.28;
   const chrome = (
-    <meshStandardMaterial color={CHROME_COLOR} roughness={0.18} metalness={0.9} />
+    <meshStandardMaterial color={metal} roughness={rough} metalness={0.9} />
   );
 
   /* Shared base puck + lever handle */
@@ -211,7 +224,7 @@ function Faucet({
   );
 }
 
-export function Sink({ xOffset, width, worktopTopY, sinkType, faucetStyle = 'arch', onPress, onFaucetPress }: Props) {
+export function Sink({ xOffset, width, worktopTopY, sinkType, faucetStyle = 'arch', faucetFinish = 'chrome', onPress, onFaucetPress }: Props) {
   if (sinkType === 'none') return null;
 
   const rimW = Math.min(width * 0.88, 0.62);
@@ -273,8 +286,8 @@ export function Sink({ xOffset, width, worktopTopY, sinkType, faucetStyle = 'arc
         </>
       )}
 
-      {/* Faucet — swappable silhouette, its own click target (cycles style) */}
-      <Faucet style={faucetStyle} rimY={rimY} rimD={rimD} onPress={onFaucetPress} />
+      {/* Faucet — swappable silhouette + finish, its own click target */}
+      <Faucet style={faucetStyle} finish={faucetFinish} rimY={rimY} rimD={rimD} onPress={onFaucetPress} />
     </group>
   );
 }

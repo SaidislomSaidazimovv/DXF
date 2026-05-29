@@ -24,6 +24,8 @@ export function Kitchen() {
   const cabinetSink = useUI((s) => s.cabinetSink);
   const cabinetStove = useUI((s) => s.cabinetStove);
   const cabinetFaucet = useUI((s) => s.cabinetFaucet);
+  const cabinetFaucetFinish = useUI((s) => s.cabinetFaucetFinish);
+  const cabinetBurners = useUI((s) => s.cabinetBurners);
   const upperMaterial = useUI((s) => s.upperMaterial);
   const upperHandle = useUI((s) => s.upperHandle);
   const worktopOverride = useUI((s) => s.worktopOverride);
@@ -90,6 +92,8 @@ export function Kitchen() {
             sinkType={cabinetSink[p.cab.id] ?? sinkType}
             stoveType={cabinetStove[p.cab.id] ?? stoveType}
             faucetStyle={cabinetFaucet[p.cab.id] ?? 'arch'}
+            faucetFinish={cabinetFaucetFinish[p.cab.id] ?? 'chrome'}
+            burners={cabinetBurners[p.cab.id] ?? 4}
             isSelected={selectedId === p.cab.id}
             onSelect={() => { hapticTap(); selectCabinet(p.cab.id); }}
             onCycleDoor={() => { hapticTap(); cycleDoorStyle(p.cab.id); }}

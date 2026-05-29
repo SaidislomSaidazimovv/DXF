@@ -19,7 +19,9 @@ import type {
   CeilingHeight,
   Constraint,
   CustomerConfirmation,
+  BurnerCount,
   DoorStyle,
+  FaucetFinish,
   FaucetStyle,
   HandleType,
   HardeningPanel,
@@ -121,6 +123,8 @@ export interface UIState {
   cabinetSink: Record<string, SinkType>;
   cabinetStove: Record<string, StoveType>;
   cabinetFaucet: Record<string, FaucetStyle>;
+  cabinetFaucetFinish: Record<string, FaucetFinish>;
+  cabinetBurners: Record<string, BurnerCount>;
   /** Per-upper overrides (keyed by the base cabinet id beneath the upper). */
   upperMaterial: Record<string, MaterialId>;
   upperHandle: Record<string, HandleType>;
@@ -179,6 +183,14 @@ export interface UIState {
   cycleStove: (cabId: string) => void;
   cycleFaucet: (cabId: string) => void;
   cycleWorktop: () => void;
+  /* Direct setters — used by the explicit chip controls in the selection pill. */
+  setCabinetDoorStyle: (cabId: string, v: DoorStyle) => void;
+  setCabinetHandle: (cabId: string, v: HandleType) => void;
+  setCabinetSink: (cabId: string, v: SinkType) => void;
+  setCabinetStove: (cabId: string, v: StoveType) => void;
+  setCabinetFaucetStyle: (cabId: string, v: FaucetStyle) => void;
+  setCabinetFaucetFinish: (cabId: string, v: FaucetFinish) => void;
+  setCabinetBurners: (cabId: string, v: BurnerCount) => void;
   selectCabinet: (id: string | null) => void;
   selectUpper: (id: string | null) => void;
   setUpperMaterial: (cabId: string, m: MaterialId) => void;
@@ -251,6 +263,8 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   cabinetSink: {},
   cabinetStove: {},
   cabinetFaucet: {},
+  cabinetFaucetFinish: {},
+  cabinetBurners: {},
   upperMaterial: {},
   upperHandle: {},
   auxMaterials: { ...DEFAULT_AUX },
@@ -298,6 +312,8 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetSink: {},
       cabinetStove: {},
       cabinetFaucet: {},
+      cabinetFaucetFinish: {},
+      cabinetBurners: {},
       upperMaterial: {},
       upperHandle: {},
       auxMaterials: { ...DEFAULT_AUX },
@@ -397,6 +413,8 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetSink: {},
       cabinetStove: {},
       cabinetFaucet: {},
+      cabinetFaucetFinish: {},
+      cabinetBurners: {},
       upperMaterial: {},
       upperHandle: {},
       cabinetHardware: {},
@@ -446,6 +464,8 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetSink: {},
       cabinetStove: {},
       cabinetFaucet: {},
+      cabinetFaucetFinish: {},
+      cabinetBurners: {},
       upperMaterial: {},
       upperHandle: {},
       cabinetHardware: {},
@@ -513,6 +533,22 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       const cur = s.cabinetFaucet[cabId] ?? 'arch';
       return { cabinetFaucet: { ...s.cabinetFaucet, [cabId]: nextInCycle(FAUCET_CYCLE, cur) } };
     }),
+
+  /* Direct per-cabinet setters (explicit chip controls) */
+  setCabinetDoorStyle: (cabId, v) =>
+    set((s) => ({ cabinetDoorStyle: { ...s.cabinetDoorStyle, [cabId]: v } })),
+  setCabinetHandle: (cabId, v) =>
+    set((s) => ({ cabinetHandle: { ...s.cabinetHandle, [cabId]: v } })),
+  setCabinetSink: (cabId, v) =>
+    set((s) => ({ cabinetSink: { ...s.cabinetSink, [cabId]: v } })),
+  setCabinetStove: (cabId, v) =>
+    set((s) => ({ cabinetStove: { ...s.cabinetStove, [cabId]: v } })),
+  setCabinetFaucetStyle: (cabId, v) =>
+    set((s) => ({ cabinetFaucet: { ...s.cabinetFaucet, [cabId]: v } })),
+  setCabinetFaucetFinish: (cabId, v) =>
+    set((s) => ({ cabinetFaucetFinish: { ...s.cabinetFaucetFinish, [cabId]: v } })),
+  setCabinetBurners: (cabId, v) =>
+    set((s) => ({ cabinetBurners: { ...s.cabinetBurners, [cabId]: v } })),
 
   cycleWorktop: () =>
     set((s) => {

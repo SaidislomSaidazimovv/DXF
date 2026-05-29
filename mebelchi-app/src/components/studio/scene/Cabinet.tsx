@@ -15,8 +15,10 @@ import React from 'react';
 import type { ThreeEvent } from '@/lib/three/r3f';
 import type {
   Cabinet as CabinetData,
+  BurnerCount,
   DoorStyle,
   FaucetStyle,
+  FaucetFinish,
   HandleType,
   SinkType,
   StoveType,
@@ -38,6 +40,8 @@ interface Props {
   sinkType: SinkType;
   stoveType: StoveType;
   faucetStyle: FaucetStyle;
+  faucetFinish: FaucetFinish;
+  burners: BurnerCount;
   isSelected: boolean;
   onSelect: () => void;
   onCycleDoor: () => void;
@@ -514,6 +518,8 @@ export function Cabinet({
   stoveType,
   isSelected,
   faucetStyle,
+  faucetFinish,
+  burners,
   onSelect,
   onCycleDoor,
   onCycleHandle,
@@ -799,6 +805,7 @@ export function Cabinet({
           worktopTopY={worktopTopY}
           sinkType={sinkType}
           faucetStyle={faucetStyle}
+          faucetFinish={faucetFinish}
           onPress={onSinkPress}
           onFaucetPress={onFaucetPress}
         />
@@ -809,6 +816,7 @@ export function Cabinet({
           width={isCombo ? bodyW / 2 : bodyW}
           worktopTopY={worktopTopY}
           stoveType={stoveType}
+          burners={burners}
           onPress={onStovePress}
         />
       )}

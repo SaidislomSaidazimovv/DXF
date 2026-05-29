@@ -130,6 +130,10 @@ export type SinkType = 'single' | 'double' | 'none';
 export type StoveType = 'induction' | 'gas' | 'none';
 /** Faucet (kran) silhouette — a per-sink detail the master can swap. */
 export type FaucetStyle = 'arch' | 'straight' | 'pull';
+/** Faucet finish (metal colour). */
+export type FaucetFinish = 'chrome' | 'black' | 'gold';
+/** Cooktop burner/zone count. */
+export type BurnerCount = 2 | 4;
 
 export interface Cabinet {
   id: string;

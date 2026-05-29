@@ -11,13 +11,14 @@
  */
 import React from 'react';
 import { GEOMETRY } from '@/types/ui';
-import type { StoveType } from '@/types/ui';
+import type { StoveType, BurnerCount } from '@/types/ui';
 
 interface Props {
   xOffset: number;
   width: number;
   worktopTopY: number;
   stoveType: StoveType;
+  burners?: BurnerCount;
   onPress?: () => void;
 }
 
@@ -31,7 +32,7 @@ const BURNER_CUP  = 0x3a3a37;
 const KNOB_COLOR  = 0x3a3a37;
 const TOUCH_LED   = 0xff8a4a;     // hint of orange for induction touch pad
 
-export function Stove({ xOffset, width, worktopTopY, stoveType, onPress }: Props) {
+export function Stove({ xOffset, width, worktopTopY, stoveType, burners = 4, onPress }: Props) {
   if (stoveType === 'none') return null;
 
   const slabW = Math.min(width * 0.94, 0.66);
@@ -42,18 +43,25 @@ export function Stove({ xOffset, width, worktopTopY, stoveType, onPress }: Props
 
   const burnerR = Math.min(0.075, slabW * 0.18);
 
-  /* 2×2 burner offsets (in slab-local coords, before group translation) */
-  const offsets: [number, number][] = [
-    [-slabW * 0.26, -slabD * 0.20],   // back-left
-    [+slabW * 0.26, -slabD * 0.20],   // back-right
-    [-slabW * 0.26, +slabD * 0.20],   // front-left
-    [+slabW * 0.26, +slabD * 0.20],   // front-right
-  ];
+  /* Burner offsets — 4 zones in a 2×2, or 2 zones centred front-to-back. */
+  const offsets: [number, number][] = burners === 2
+    ? [
+        [0, -slabD * 0.20],   // back-centre
+        [0, +slabD * 0.20],   // front-centre
+      ]
+    : [
+        [-slabW * 0.26, -slabD * 0.20],   // back-left
+        [+slabW * 0.26, -slabD * 0.20],   // back-right
+        [-slabW * 0.26, +slabD * 0.20],   // front-left
+        [+slabW * 0.26, +slabD * 0.20],   // front-right
+      ];
 
-  /* Knob/touch positions on the front edge of the slab */
+  /* Knob/touch positions on the front edge — one per burner. */
   const knobZ = slabZ + slabD / 2 - 0.045;
   const knobY = slabY + slabH / 2 + 0.005;
-  const knobXs = [-slabW * 0.36, -slabW * 0.12, +slabW * 0.12, +slabW * 0.36];
+  const knobXs = burners === 2
+    ? [-slabW * 0.12, +slabW * 0.12]
+    : [-slabW * 0.36, -slabW * 0.12, +slabW * 0.12, +slabW * 0.36];
 
   return (
     <group position={[xOffset, 0, 0]}>
