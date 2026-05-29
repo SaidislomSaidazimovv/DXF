@@ -14,15 +14,18 @@
  *         on the rim seam.
  */
 import React from 'react';
+import type { ThreeEvent } from '@/lib/three/r3f';
 import { GEOMETRY } from '@/types/ui';
-import type { SinkType } from '@/types/ui';
+import type { SinkType, FaucetStyle } from '@/types/ui';
 
 interface Props {
   xOffset: number;
   width: number;
   worktopTopY: number;
   sinkType: SinkType;
+  faucetStyle?: FaucetStyle;
   onPress?: () => void;
+  onFaucetPress?: () => void;
 }
 
 const { CABINET_DEPTH } = GEOMETRY;
@@ -81,7 +84,134 @@ function SingleBasin({
   );
 }
 
-export function Sink({ xOffset, width, worktopTopY, sinkType, onPress }: Props) {
+/**
+ * Faucet — three swappable silhouettes (a per-sink detail):
+ *   arch     → tall gooseneck, curved high arc (default)
+ *   straight → short column + straight horizontal arm + drop spout (industrial)
+ *   pull     → column with a chunky pull-down spray head
+ * The whole faucet is one click target → cycles the style.
+ */
+function Faucet({
+  style,
+  rimY,
+  rimD,
+  onPress,
+}: {
+  style: FaucetStyle;
+  rimY: number;
+  rimD: number;
+  onPress?: () => void;
+}) {
+  const backZ = -rimD / 2 + 0.04;
+  const baseY = rimY + 0.005;
+  const press = onPress
+    ? (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onPress(); }
+    : undefined;
+  const chrome = (
+    <meshStandardMaterial color={CHROME_COLOR} roughness={0.18} metalness={0.9} />
+  );
+
+  /* Shared base puck + lever handle */
+  const base = (
+    <>
+      <mesh position={[0, baseY, backZ]}>
+        <cylinderGeometry args={[0.022, 0.024, 0.012, 16]} />
+        {chrome}
+      </mesh>
+    </>
+  );
+
+  if (style === 'straight') {
+    const columnH = 0.14;
+    const columnY = baseY + columnH / 2;
+    const armY = baseY + columnH;
+    const armLen = 0.2;
+    const spoutZ = backZ + armLen;
+    return (
+      <group onClick={press}>
+        {base}
+        {/* short column */}
+        <mesh position={[0, columnY, backZ]}>
+          <cylinderGeometry args={[0.013, 0.013, columnH, 16]} />{chrome}
+        </mesh>
+        {/* straight horizontal arm */}
+        <mesh position={[0, armY, backZ + armLen / 2]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.012, 0.012, armLen, 14]} />{chrome}
+        </mesh>
+        {/* angled drop spout */}
+        <mesh position={[0, armY - 0.03, spoutZ]}>
+          <cylinderGeometry args={[0.009, 0.011, 0.07, 14]} />{chrome}
+        </mesh>
+        {/* lever */}
+        <mesh position={[0, columnY + columnH / 2, backZ - 0.03]} rotation={[Math.PI / 2.6, 0, 0]}>
+          <cylinderGeometry args={[0.006, 0.006, 0.06, 10]} />{chrome}
+        </mesh>
+      </group>
+    );
+  }
+
+  if (style === 'pull') {
+    const columnH = 0.2;
+    const columnY = baseY + columnH / 2;
+    const headY = baseY + columnH - 0.02;
+    const headZ = backZ + 0.06;
+    return (
+      <group onClick={press}>
+        {base}
+        {/* column */}
+        <mesh position={[0, columnY, backZ]}>
+          <cylinderGeometry args={[0.015, 0.015, columnH, 16]} />{chrome}
+        </mesh>
+        {/* short forward neck */}
+        <mesh position={[0, baseY + columnH, backZ + 0.03]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.013, 0.013, 0.07, 14]} />{chrome}
+        </mesh>
+        {/* chunky pull-down spray head (angled down) */}
+        <mesh position={[0, headY, headZ]} rotation={[Math.PI / 5, 0, 0]}>
+          <cylinderGeometry args={[0.016, 0.022, 0.07, 16]} />{chrome}
+        </mesh>
+        {/* lever */}
+        <mesh position={[0, columnY + columnH / 2 - 0.02, backZ - 0.035]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.006, 0.006, 0.06, 10]} />{chrome}
+        </mesh>
+      </group>
+    );
+  }
+
+  /* arch (default) — tall gooseneck */
+  const columnH = 0.22;
+  const columnY = baseY + columnH / 2;
+  const armLen = 0.16;
+  const armY = baseY + columnH;
+  const spoutY = armY - 0.04;
+  const spoutZ = backZ + armLen - 0.01;
+  return (
+    <group onClick={press}>
+      {base}
+      <mesh position={[0, columnY, backZ]}>
+        <cylinderGeometry args={[0.014, 0.014, columnH, 16]} />{chrome}
+      </mesh>
+      <mesh position={[0, columnY + columnH / 2 - 0.02, backZ - 0.04]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.006, 0.006, 0.06, 10]} />{chrome}
+      </mesh>
+      <mesh position={[0, armY, backZ + armLen / 2]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.011, 0.011, armLen, 14]} />{chrome}
+      </mesh>
+      <mesh position={[0, armY, backZ + armLen]}>
+        <sphereGeometry args={[0.014, 14, 14]} />{chrome}
+      </mesh>
+      <mesh position={[0, spoutY, spoutZ]}>
+        <cylinderGeometry args={[0.009, 0.011, 0.08, 14]} />{chrome}
+      </mesh>
+      <mesh position={[0, spoutY - 0.05, spoutZ]}>
+        <cylinderGeometry args={[0.011, 0.011, 0.006, 14]} />
+        <meshStandardMaterial color={DRAIN_COLOR} roughness={0.3} metalness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+export function Sink({ xOffset, width, worktopTopY, sinkType, faucetStyle = 'arch', onPress, onFaucetPress }: Props) {
   if (sinkType === 'none') return null;
 
   const rimW = Math.min(width * 0.88, 0.62);
@@ -143,69 +273,8 @@ export function Sink({ xOffset, width, worktopTopY, sinkType, onPress }: Props) 
         </>
       )}
 
-      {/* ── Faucet ──────────────────────────────────────────────
-         Anatomy:
-         (1) base puck on the back rim
-         (2) vertical chrome column ~220mm tall
-         (3) curved arm = short forward box then quarter-arc down
-         (4) spout — short vertical chrome tube above basin centre
-      */}
-      {(() => {
-        const faucetBackZ = -rimD / 2 + 0.04;       // base puck z (behind basins)
-        const baseY = rimY + 0.005;
-        const columnH = 0.22;
-        const columnY = baseY + columnH / 2;
-        const armLen = 0.16;                         // forward reach
-        const armY = baseY + columnH;
-        const spoutY = armY - 0.04;                  // spout drops 40mm
-        const spoutZ = faucetBackZ + armLen - 0.01;  // tip in front of column
-
-        return (
-          <group>
-            {/* (1) Base puck */}
-            <mesh position={[0, baseY, faucetBackZ]}>
-              <cylinderGeometry args={[0.022, 0.024, 0.012, 16]} />
-              <meshStandardMaterial color={CHROME_COLOR} roughness={0.2} metalness={0.85} />
-            </mesh>
-            {/* (2) Vertical column */}
-            <mesh position={[0, columnY, faucetBackZ]}>
-              <cylinderGeometry args={[0.014, 0.014, columnH, 16]} />
-              <meshStandardMaterial color={CHROME_COLOR} roughness={0.18} metalness={0.9} />
-            </mesh>
-            {/* Handle (small lever near top of column) */}
-            <mesh
-              position={[0, columnY + columnH / 2 - 0.02, faucetBackZ - 0.04]}
-              rotation={[0, 0, Math.PI / 2]}
-            >
-              <cylinderGeometry args={[0.006, 0.006, 0.06, 10]} />
-              <meshStandardMaterial color={CHROME_COLOR} roughness={0.2} metalness={0.9} />
-            </mesh>
-            {/* (3) Horizontal arm (forward) */}
-            <mesh
-              position={[0, armY, faucetBackZ + armLen / 2]}
-              rotation={[Math.PI / 2, 0, 0]}
-            >
-              <cylinderGeometry args={[0.011, 0.011, armLen, 14]} />
-              <meshStandardMaterial color={CHROME_COLOR} roughness={0.18} metalness={0.9} />
-            </mesh>
-            {/* Elbow (small sphere at the bend) */}
-            <mesh position={[0, armY, faucetBackZ + armLen]}>
-              <sphereGeometry args={[0.014, 14, 14]} />
-              <meshStandardMaterial color={CHROME_COLOR} roughness={0.18} metalness={0.9} />
-            </mesh>
-            {/* (4) Spout — short tube dropping down */}
-            <mesh position={[0, spoutY, spoutZ]}>
-              <cylinderGeometry args={[0.009, 0.011, 0.08, 14]} />
-              <meshStandardMaterial color={CHROME_COLOR} roughness={0.18} metalness={0.9} />
-            </mesh>
-            {/* Aerator tip */}
-            <mesh position={[0, spoutY - 0.05, spoutZ]}>
-              <cylinderGeometry args={[0.011, 0.011, 0.006, 14]} />
-              <meshStandardMaterial color={DRAIN_COLOR} roughness={0.3} metalness={0.8} />
-            </mesh>
-          </group>
-        );
-      })()}
+      {/* Faucet — swappable silhouette, its own click target (cycles style) */}
+      <Faucet style={faucetStyle} rimY={rimY} rimD={rimD} onPress={onFaucetPress} />
     </group>
   );
 }

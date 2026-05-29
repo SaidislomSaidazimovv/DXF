@@ -6,6 +6,7 @@
  * colour pick contrast against the facade.
  */
 import React from 'react';
+import type { ThreeEvent } from '@/lib/three/r3f';
 import { GEOMETRY } from '@/types/ui';
 import type { HandleType } from '@/types/ui';
 import { accentForFacade, lineForFacade } from '@/lib/colors';
@@ -17,13 +18,26 @@ interface Props {
   facadeColor: number;
   handle?: HandleType;
   hasHandle?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  onCycleHandle?: () => void;
 }
 
 const { UPPER_HEIGHT, UPPER_DEPTH, UPPER_Y_OFFSET, CABINET_DEPTH } = GEOMETRY;
 
 const DOUBLE_DOOR_W = 0.55;
+const HIGHLIGHT_COLOR = 0x1d6fb8;
 
-export function Upper({ position, width, facadeColor, handle = 'bar', hasHandle = true }: Props) {
+export function Upper({
+  position,
+  width,
+  facadeColor,
+  handle = 'bar',
+  hasHandle = true,
+  isSelected = false,
+  onSelect,
+  onCycleHandle,
+}: Props) {
   const bodyW = width - 0.003;
   const cy = UPPER_Y_OFFSET + UPPER_HEIGHT / 2;
   const baseBackZ = position[2] - CABINET_DEPTH / 2;
@@ -33,9 +47,20 @@ export function Upper({ position, width, facadeColor, handle = 'bar', hasHandle 
   const frontZ = UPPER_DEPTH / 2;
   const isWide = bodyW > DOUBLE_DOOR_W;
 
+  /* Body click: front face when selected → cycle handle; otherwise select. */
+  const onBodyClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if (isSelected && onCycleHandle) onCycleHandle();
+    else onSelect?.();
+  };
+  const handlePress = () => {
+    if (isSelected && onCycleHandle) onCycleHandle();
+    else onSelect?.();
+  };
+
   return (
     <group position={[position[0], 0, upperCenterZ]}>
-      <mesh position={[0, cy, 0]}>
+      <mesh position={[0, cy, 0]} onClick={onBodyClick}>
         <boxGeometry args={[bodyW, UPPER_HEIGHT, UPPER_DEPTH]} />
         <meshStandardMaterial color={facadeColor} roughness={0.6} />
       </mesh>
@@ -66,6 +91,7 @@ export function Upper({ position, width, facadeColor, handle = 'bar', hasHandle 
               panelWidth={bodyW / 2}
               orientation="horizontal"
               accent={accent}
+              onPress={handlePress}
             />
             <Handle
               type={handle}
@@ -75,6 +101,7 @@ export function Upper({ position, width, facadeColor, handle = 'bar', hasHandle 
               panelWidth={bodyW / 2}
               orientation="horizontal"
               accent={accent}
+              onPress={handlePress}
             />
           </>
         ) : (
@@ -86,8 +113,23 @@ export function Upper({ position, width, facadeColor, handle = 'bar', hasHandle 
             panelWidth={bodyW}
             orientation="horizontal"
             accent={accent}
+            onPress={handlePress}
           />
         )
+      )}
+
+      {/* Selection highlight — blue translucent box when this upper is focused */}
+      {isSelected && (
+        <mesh position={[0, cy, 0]}>
+          <boxGeometry args={[bodyW + 0.04, UPPER_HEIGHT + 0.05, UPPER_DEPTH + 0.05]} />
+          <meshStandardMaterial
+            color={HIGHLIGHT_COLOR}
+            transparent
+            opacity={0.16}
+            roughness={0.4}
+            depthWrite={false}
+          />
+        </mesh>
       )}
     </group>
   );

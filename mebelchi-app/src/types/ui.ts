@@ -128,6 +128,8 @@ export type DoorStyle = 'flat' | 'shaker' | 'grooved';
 export type HandleType = 'bar' | 'knob' | 'inset';
 export type SinkType = 'single' | 'double' | 'none';
 export type StoveType = 'induction' | 'gas' | 'none';
+/** Faucet (kran) silhouette — a per-sink detail the master can swap. */
+export type FaucetStyle = 'arch' | 'straight' | 'pull';
 
 export interface Cabinet {
   id: string;

@@ -23,9 +23,11 @@ const BOTTOM_BAR_HEIGHT = 78;
 
 export function SelectionPill() {
   const selectedId = useUI((s) => s.selectedCabinetId);
+  const selectedUpperId = useUI((s) => s.selectedUpperId);
   const variant = useUI(selectCurrentVariant);
   const lang = useUI((s) => s.language);
   const selectCabinet = useUI((s) => s.selectCabinet);
+  const selectUpper = useUI((s) => s.selectUpper);
   const resizeCabinet = useUI((s) => s.resizeCabinet);
 
   const t = useT();
@@ -36,7 +38,7 @@ export function SelectionPill() {
 
   const translateY = useRef(new Animated.Value(220)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const isOpen = !!selectedId;
+  const isOpen = !!selectedId || !!selectedUpperId;
 
   useEffect(() => {
     Animated.parallel([
@@ -53,6 +55,31 @@ export function SelectionPill() {
       }),
     ]).start();
   }, [isOpen, translateY, opacity]);
+
+  /* Upper (wall cabinet) variant — simpler pill: name + close + hint. */
+  if (selectedUpperId) {
+    return (
+      <Animated.View
+        pointerEvents="auto"
+        style={[styles.root, { bottom: bottomOffset, transform: [{ translateY }], opacity }]}
+      >
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.name}>ВЕРХНИЙ ШКАФ</Text>
+          </View>
+          <Pressable
+            onPress={() => { hapticTap(); selectUpper(null); }}
+            hitSlop={12}
+            style={({ pressed }) => [styles.close, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.closeTxt}>×</Text>
+          </Pressable>
+        </View>
+        <View style={styles.divider} />
+        <Text style={styles.hint}>tap дверь — ручка · кнопка «material» — цвет</Text>
+      </Animated.View>
+    );
+  }
 
   const cab = variant?.cabinets.find((c) => c.id === selectedId);
 

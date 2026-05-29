@@ -13,6 +13,7 @@ import {
   OVERVIEW_TARGET,
   PLAN_TARGET,
   XRAY_TARGET,
+  GEOMETRY,
   computeCabinetCameraTarget,
 } from '@/types/ui';
 import type { CameraTarget } from '@/types/ui';
@@ -26,6 +27,7 @@ function easeOutCubic(t: number): number {
 export function CameraRig() {
   const { camera } = useThree();
   const selectedId = useUI((s) => s.selectedCabinetId);
+  const selectedUpperId = useUI((s) => s.selectedUpperId);
   const variant = useUI(selectCurrentVariant);
   const viewMode = useUI((s) => s.viewMode);
   const wallMm = useUI((s) => s.wallLengthMm);
@@ -76,6 +78,18 @@ export function CameraRig() {
          workshop-overview perspective. */
       camera.up.set(0, 1, 0);
       target = XRAY_TARGET;
+    } else if (selectedUpperId) {
+      /* Focus on a wall (upper) cabinet — same X/Z as its base, but aim up
+         at the upper's height so the master can edit it up close. */
+      camera.up.set(0, 1, 0);
+      const placed = findPlaced(variant, selectedUpperId);
+      const upperY = GEOMETRY.UPPER_Y_OFFSET + GEOMETRY.UPPER_HEIGHT / 2;
+      target = placed
+        ? computeCabinetCameraTarget(
+            [placed.groupPosition[0], upperY, placed.groupPosition[2] - GEOMETRY.CABINET_DEPTH / 2],
+            placed.cab.width
+          )
+        : OVERVIEW_TARGET;
     } else {
       camera.up.set(0, 1, 0);
       if (!selectedId) {
@@ -100,7 +114,7 @@ export function CameraRig() {
     startTime.current = performance.now();
     duration.current = target.duration;
     tweening.current = true;
-  }, [selectedId, viewMode, variant, wallMm, heroMode, camera]);
+  }, [selectedId, selectedUpperId, viewMode, variant, wallMm, heroMode, camera]);
 
   /* Per-frame lerp + hero turntable */
   useFrame(() => {

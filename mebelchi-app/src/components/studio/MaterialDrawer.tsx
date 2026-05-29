@@ -21,8 +21,19 @@ interface Props {
 }
 
 export function MaterialDrawer({ isOpen, onClose }: Props) {
+  /* The active material highlighted in the grid reflects the current focus:
+     selected upper → its material; selected cabinet → its material; else global. */
   const globalMaterial = useUI((s) => s.globalMaterial);
-  const setGlobalMaterial = useUI((s) => s.setGlobalMaterial);
+  const selectedCabinetId = useUI((s) => s.selectedCabinetId);
+  const selectedUpperId = useUI((s) => s.selectedUpperId);
+  const cabinetMaterial = useUI((s) => s.cabinetMaterial);
+  const upperMaterial = useUI((s) => s.upperMaterial);
+  const setMaterialForSelection = useUI((s) => s.setMaterialForSelection);
+  const activeMaterial = selectedUpperId
+    ? (upperMaterial[selectedUpperId] ?? globalMaterial)
+    : selectedCabinetId
+      ? (cabinetMaterial[selectedCabinetId] ?? globalMaterial)
+      : globalMaterial;
   const t = useT();
   const sheetRef = useRef<BottomSheet>(null);
   const [toastMat, setToastMat] = useState<MaterialId | null>(null);
@@ -49,14 +60,14 @@ export function MaterialDrawer({ isOpen, onClose }: Props) {
   const pick = useCallback(
     (id: MaterialId) => {
       hapticSwatch();
-      setGlobalMaterial(id);
+      setMaterialForSelection(id);
       setToastMat(id);
       setTimeout(() => {
         sheetRef.current?.close();
         setToastMat(null);
       }, 280);
     },
-    [setGlobalMaterial]
+    [setMaterialForSelection]
   );
 
   return (
@@ -70,7 +81,13 @@ export function MaterialDrawer({ isOpen, onClose }: Props) {
       handleIndicatorStyle={styles.handle}
     >
       <BottomSheetView style={styles.content}>
-        <Text style={styles.title}>{t('palette_title')}</Text>
+        <Text style={styles.title}>
+          {selectedUpperId
+            ? 'ЦВЕТ ВЕРХНЕГО ШКАФА'
+            : selectedCabinetId
+              ? 'ЦВЕТ ЭТОГО ШКАФА'
+              : t('palette_title')}
+        </Text>
 
         <View
           style={styles.grid}
@@ -80,7 +97,7 @@ export function MaterialDrawer({ isOpen, onClose }: Props) {
             <PaletteCard
               key={m.id}
               material={m}
-              active={globalMaterial === m.id}
+              active={activeMaterial === m.id}
               onPress={() => pick(m.id)}
               width={cardW}
             />

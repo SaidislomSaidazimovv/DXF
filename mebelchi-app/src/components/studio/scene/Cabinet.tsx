@@ -16,6 +16,7 @@ import type { ThreeEvent } from '@/lib/three/r3f';
 import type {
   Cabinet as CabinetData,
   DoorStyle,
+  FaucetStyle,
   HandleType,
   SinkType,
   StoveType,
@@ -36,12 +37,14 @@ interface Props {
   handle: HandleType;
   sinkType: SinkType;
   stoveType: StoveType;
+  faucetStyle: FaucetStyle;
   isSelected: boolean;
   onSelect: () => void;
   onCycleDoor: () => void;
   onCycleHandle: () => void;
   onCycleSink: () => void;
   onCycleStove: () => void;
+  onCycleFaucet: () => void;
   onCycleDrawer: () => void;
 }
 
@@ -510,11 +513,13 @@ export function Cabinet({
   sinkType,
   stoveType,
   isSelected,
+  faucetStyle,
   onSelect,
   onCycleDoor,
   onCycleHandle,
   onCycleSink,
   onCycleStove,
+  onCycleFaucet,
   onCycleDrawer,
 }: Props) {
   const isTall = cabinet.type === 'tall' || cabinet.type === 'fridge';
@@ -576,14 +581,18 @@ export function Cabinet({
     else onSelect();
   };
 
-  // Sink / stove — first tap selects the cabinet (camera flies in + pill rises);
-  // subsequent taps on the same fixture cycle its type.
+  // Sink / stove / faucet — first tap selects the cabinet (camera flies in
+  // + pill rises); subsequent taps on the same fixture cycle its type.
   const onSinkPress = () => {
     if (isSelected) onCycleSink();
     else onSelect();
   };
   const onStovePress = () => {
     if (isSelected) onCycleStove();
+    else onSelect();
+  };
+  const onFaucetPress = () => {
+    if (isSelected) onCycleFaucet();
     else onSelect();
   };
 
@@ -789,7 +798,9 @@ export function Cabinet({
           width={isCombo ? bodyW / 2 : bodyW}
           worktopTopY={worktopTopY}
           sinkType={sinkType}
+          faucetStyle={faucetStyle}
           onPress={onSinkPress}
+          onFaucetPress={onFaucetPress}
         />
       )}
       {!isTall && hasStove && (

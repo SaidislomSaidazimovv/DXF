@@ -20,6 +20,7 @@ import type {
   Constraint,
   CustomerConfirmation,
   DoorStyle,
+  FaucetStyle,
   HandleType,
   HardeningPanel,
   HardeningPanelPreset,
@@ -48,6 +49,7 @@ const DOOR_CYCLE: DoorStyle[] = ['flat', 'shaker', 'grooved'];
 const HANDLE_CYCLE: HandleType[] = ['bar', 'knob', 'inset'];
 const SINK_CYCLE: SinkType[] = ['single', 'double'];      // 'none' intentionally skipped
 const STOVE_CYCLE: StoveType[] = ['induction', 'gas'];     // 'none' intentionally skipped
+const FAUCET_CYCLE: FaucetStyle[] = ['arch', 'straight', 'pull'];
 const WORKTOP_CYCLE: number[] = [0xdfd9c8, 0x2c2c2a, 0x1f1f1d, 0x5a4a32, 0xc5b88f];
 
 function nextInCycle<T>(arr: T[], current: T): T {
@@ -109,12 +111,19 @@ export interface UIState {
   // Phase C — configuration
   globalMaterial: MaterialId;
   globalDoorStyle: DoorStyle;
-  sinkType: SinkType;
-  stoveType: StoveType;
+  sinkType: SinkType;            // default for cabinets without an override
+  stoveType: StoveType;          // default for cabinets without an override
   worktopOverride: number | null;
   cabinetMaterial: Record<string, MaterialId>;
   cabinetDoorStyle: Record<string, DoorStyle>;
   cabinetHandle: Record<string, HandleType>;
+  /** Per-cabinet fixture overrides — each sink/stove cabinet is independent. */
+  cabinetSink: Record<string, SinkType>;
+  cabinetStove: Record<string, StoveType>;
+  cabinetFaucet: Record<string, FaucetStyle>;
+  /** Per-upper overrides (keyed by the base cabinet id beneath the upper). */
+  upperMaterial: Record<string, MaterialId>;
+  upperHandle: Record<string, HandleType>;
   auxMaterials: AuxMaterials;
 
   // Phase D — engineering
@@ -134,6 +143,7 @@ export interface UIState {
 
   // UI ephemeral
   selectedCabinetId: string | null;
+  selectedUpperId: string | null;
   viewMode: ViewMode;
   heroMode: boolean;
 
@@ -160,12 +170,19 @@ export interface UIState {
   cycleVariant: (direction: 1 | -1) => void;
   setGlobalMaterial: (m: MaterialId) => void;
   setCabinetMaterial: (cabId: string, m: MaterialId) => void;
+  /** Context-aware material setter: targets the selected upper, else the
+      selected cabinet, else the global material. Used by the material drawer. */
+  setMaterialForSelection: (m: MaterialId) => void;
   cycleDoorStyle: (cabId: string) => void;
   cycleHandle: (cabId: string) => void;
-  cycleSink: () => void;
-  cycleStove: () => void;
+  cycleSink: (cabId: string) => void;
+  cycleStove: (cabId: string) => void;
+  cycleFaucet: (cabId: string) => void;
   cycleWorktop: () => void;
   selectCabinet: (id: string | null) => void;
+  selectUpper: (id: string | null) => void;
+  setUpperMaterial: (cabId: string, m: MaterialId) => void;
+  cycleUpperHandle: (cabId: string) => void;
   resizeCabinet: (cabId: string, deltaMm: number) => void;
   setCabinetDrawerCount: (cabId: string, count: 2 | 3 | 4) => void;
   cycleCabinetDrawerCount: (cabId: string) => void;
@@ -231,6 +248,11 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   cabinetMaterial: {},
   cabinetDoorStyle: {},
   cabinetHandle: {},
+  cabinetSink: {},
+  cabinetStove: {},
+  cabinetFaucet: {},
+  upperMaterial: {},
+  upperHandle: {},
   auxMaterials: { ...DEFAULT_AUX },
 
   // Phase D
@@ -248,6 +270,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
 
   // UI
   selectedCabinetId: null,
+  selectedUpperId: null,
   viewMode: '3d',
   heroMode: false,
 
@@ -272,6 +295,11 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetMaterial: {},
       cabinetDoorStyle: {},
       cabinetHandle: {},
+      cabinetSink: {},
+      cabinetStove: {},
+      cabinetFaucet: {},
+      upperMaterial: {},
+      upperHandle: {},
       auxMaterials: { ...DEFAULT_AUX },
       cabinetHardware: {},
       hardeningPanels: [],
@@ -280,6 +308,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       appliedAdvisorTips: [],
       dismissedAdvisorTips: [],
       selectedCabinetId: null,
+      selectedUpperId: null,
       viewMode: '3d',
       heroMode: false,
     });
@@ -365,9 +394,15 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetMaterial: {},
       cabinetDoorStyle: {},
       cabinetHandle: {},
+      cabinetSink: {},
+      cabinetStove: {},
+      cabinetFaucet: {},
+      upperMaterial: {},
+      upperHandle: {},
       cabinetHardware: {},
       hardeningPanels: [],
       selectedCabinetId: null,
+      selectedUpperId: null,
     });
   },
 
@@ -408,9 +443,15 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetMaterial: {},
       cabinetDoorStyle: {},
       cabinetHandle: {},
+      cabinetSink: {},
+      cabinetStove: {},
+      cabinetFaucet: {},
+      upperMaterial: {},
+      upperHandle: {},
       cabinetHardware: {},
       hardeningPanels: [],
       selectedCabinetId: null,
+      selectedUpperId: null,
     });
   },
 
@@ -425,6 +466,20 @@ export const useUI = create<UIState>()(persist((set, get) => ({
 
   setCabinetMaterial: (cabId, m) =>
     set((s) => ({ cabinetMaterial: { ...s.cabinetMaterial, [cabId]: m } })),
+
+  /* Context-aware: upper selected → that upper; cabinet selected → that
+     cabinet; nothing selected → global default. Lets the bottom "material"
+     button target whatever the master is currently focused on. */
+  setMaterialForSelection: (m) =>
+    set((s) => {
+      if (s.selectedUpperId) {
+        return { upperMaterial: { ...s.upperMaterial, [s.selectedUpperId]: m } };
+      }
+      if (s.selectedCabinetId) {
+        return { cabinetMaterial: { ...s.cabinetMaterial, [s.selectedCabinetId]: m } };
+      }
+      return { globalMaterial: m };
+    }),
 
   cycleDoorStyle: (cabId) =>
     set((s) => {
@@ -442,8 +497,22 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       };
     }),
 
-  cycleSink: () => set((s) => ({ sinkType: nextInCycle(SINK_CYCLE, s.sinkType) })),
-  cycleStove: () => set((s) => ({ stoveType: nextInCycle(STOVE_CYCLE, s.stoveType) })),
+  /* Per-cabinet fixture cycles — each sink/stove/faucet is independent. */
+  cycleSink: (cabId) =>
+    set((s) => {
+      const cur = s.cabinetSink[cabId] ?? s.sinkType;
+      return { cabinetSink: { ...s.cabinetSink, [cabId]: nextInCycle(SINK_CYCLE, cur) } };
+    }),
+  cycleStove: (cabId) =>
+    set((s) => {
+      const cur = s.cabinetStove[cabId] ?? s.stoveType;
+      return { cabinetStove: { ...s.cabinetStove, [cabId]: nextInCycle(STOVE_CYCLE, cur) } };
+    }),
+  cycleFaucet: (cabId) =>
+    set((s) => {
+      const cur = s.cabinetFaucet[cabId] ?? 'arch';
+      return { cabinetFaucet: { ...s.cabinetFaucet, [cabId]: nextInCycle(FAUCET_CYCLE, cur) } };
+    }),
 
   cycleWorktop: () =>
     set((s) => {
@@ -453,12 +522,27 @@ export const useUI = create<UIState>()(persist((set, get) => ({
     }),
 
   selectCabinet: (id) => {
-    /* During the "show customer" ceremony (heroMode turntable), cabinets
-       must not be selectable — a stray tap shouldn't highlight a cabinet
-       or pop the selection pill. Deselecting (id === null) is always allowed. */
+    /* During the "show customer" ceremony (heroMode turntable), nothing is
+       selectable — a stray tap shouldn't highlight anything. Deselecting
+       (id === null) is always allowed. Selecting a cabinet clears any
+       upper selection (focus is mutually exclusive). */
     if (id !== null && get().heroMode) return;
-    set({ selectedCabinetId: id });
+    set({ selectedCabinetId: id, selectedUpperId: null });
   },
+
+  selectUpper: (id) => {
+    if (id !== null && get().heroMode) return;
+    set({ selectedUpperId: id, selectedCabinetId: null });
+  },
+
+  setUpperMaterial: (cabId, m) =>
+    set((s) => ({ upperMaterial: { ...s.upperMaterial, [cabId]: m } })),
+
+  cycleUpperHandle: (cabId) =>
+    set((s) => {
+      const cur = s.upperHandle[cabId] ?? 'bar';
+      return { upperHandle: { ...s.upperHandle, [cabId]: nextInCycle(HANDLE_CYCLE, cur) } };
+    }),
 
   resizeCabinet: (cabId, deltaMm) =>
     set((s) => {
