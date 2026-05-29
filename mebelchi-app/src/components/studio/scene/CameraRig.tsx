@@ -24,6 +24,30 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+/**
+ * Frame a focused element so it sits in the UPPER portion of the screen —
+ * the selection pill covers the bottom ~half, so we:
+ *   • pull the camera back enough to show the whole element + margin
+ *   • aim the lookAt BELOW the element (upBias) so it rides high, clearing
+ *     the pill, and the master can see exactly what's being changed.
+ */
+function frameTarget(
+  cx: number,
+  cy: number,
+  cz: number,
+  dist: number,
+  upBias: number,
+  lookZ?: number,
+): CameraTarget {
+  const side = cx >= 0 ? 0.3 : -0.3;
+  return {
+    position: [cx * 0.5 + side, cy + 0.7, cz + dist],
+    lookAt: [cx, cy - upBias, lookZ ?? cz],
+    fov: 40,
+    duration: 480,
+  };
+}
+
 export function CameraRig() {
   const { camera } = useThree();
   const selectedId = useUI((s) => s.selectedCabinetId);
@@ -80,50 +104,50 @@ export function CameraRig() {
       camera.up.set(0, 1, 0);
       target = XRAY_TARGET;
     } else if (selectedUpperId) {
-      /* Focus on a wall (upper) cabinet — same X/Z as its base, but aim up
-         at the upper's height so the master can edit it up close. */
+      /* Wall (upper) cabinet — framed high, fully visible above the pill. */
       camera.up.set(0, 1, 0);
       const placed = findPlaced(variant, selectedUpperId);
       const upperY = GEOMETRY.UPPER_Y_OFFSET + GEOMETRY.UPPER_HEIGHT / 2;
       target = placed
-        ? computeCabinetCameraTarget(
-            [placed.groupPosition[0], upperY, placed.groupPosition[2] - GEOMETRY.CABINET_DEPTH / 2],
-            placed.cab.width
+        ? frameTarget(
+            placed.groupPosition[0],
+            upperY,
+            placed.groupPosition[2] - GEOMETRY.CABINET_DEPTH / 2,
+            2.5 + placed.cab.width * 0.5,
+            0.42,
           )
         : OVERVIEW_TARGET;
     } else if (selectedDetail && selectedId) {
-      /* Zoom to a specific fixture (faucet / stove / sink) ON the worktop —
-         not the cabinet box. Aim at worktop height (faucet a bit higher) and
-         pass a small effective width so the camera moves in close. */
+      /* A specific fixture (faucet / stove / sink) on the worktop. Closer than
+         a cabinet but still pulled back enough to show the whole fixture. */
       camera.up.set(0, 1, 0);
       const placed = findPlaced(variant, selectedId);
       if (placed) {
         const worktopY =
           GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS;
-        const detailY = selectedDetail === 'faucet' ? worktopY + 0.16 : worktopY + 0.04;
-        /* faucet sits toward the back of the worktop; sink/stove centred-ish */
+        const detailY = selectedDetail === 'faucet' ? worktopY + 0.18 : worktopY + 0.06;
         const detailZ =
           placed.groupPosition[2] - (selectedDetail === 'faucet' ? GEOMETRY.CABINET_DEPTH * 0.18 : 0);
-        target = computeCabinetCameraTarget(
-          [placed.groupPosition[0], detailY, detailZ],
-          0.34 // tight effective width → closer zoom than the whole cabinet
-        );
+        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 1.95, 0.28, detailZ);
       } else {
         target = OVERVIEW_TARGET;
       }
+    } else if (selectedId) {
+      /* Whole base cabinet — full height visible above the pill. */
+      camera.up.set(0, 1, 0);
+      const placed = findPlaced(variant, selectedId);
+      target = placed
+        ? frameTarget(
+            placed.groupPosition[0],
+            placed.bodyCenterY + 0.18,
+            placed.groupPosition[2],
+            2.7 + placed.cab.width * 0.5,
+            0.32,
+          )
+        : OVERVIEW_TARGET;
     } else {
       camera.up.set(0, 1, 0);
-      if (!selectedId) {
-        target = OVERVIEW_TARGET;
-      } else {
-        const placed = findPlaced(variant, selectedId);
-        target = placed
-          ? computeCabinetCameraTarget(
-              [placed.groupPosition[0], placed.bodyCenterY, placed.groupPosition[2]],
-              placed.cab.width
-            )
-          : OVERVIEW_TARGET;
-      }
+      target = OVERVIEW_TARGET;
     }
 
     fromPos.current.copy(camera.position);

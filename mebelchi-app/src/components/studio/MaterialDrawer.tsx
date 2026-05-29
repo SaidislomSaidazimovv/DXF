@@ -6,7 +6,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useUI } from '@/store/uiStore';
 import { PALETTE_MATERIALS, materialById } from '@/mocks/materials';
 import { PaletteCard } from '@/components/shared/PaletteCard';
@@ -80,7 +80,7 @@ export function MaterialDrawer({ isOpen, onClose }: Props) {
       backgroundStyle={styles.bg}
       handleIndicatorStyle={styles.handle}
     >
-      <BottomSheetView style={styles.content}>
+      <BottomSheetScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>
           {selectedUpperId
             ? 'ЦВЕТ ВЕРХНЕГО ШКАФА'
@@ -109,7 +109,7 @@ export function MaterialDrawer({ isOpen, onClose }: Props) {
             <Text style={styles.toastTxt}>{t('palette_toast')} {materialById(toastMat).name}</Text>
           </View>
         )}
-      </BottomSheetView>
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 }
@@ -118,9 +118,9 @@ const styles = StyleSheet.create({
   bg: { backgroundColor: COLORS.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   handle: { backgroundColor: COLORS.line, width: 44 },
   content: {
-    flex: 1,
     padding: SPACE.xl,
     paddingTop: SPACE.md,
+    paddingBottom: SPACE.xxl,
   },
   title: {
     ...TYPE.sectionLabel,

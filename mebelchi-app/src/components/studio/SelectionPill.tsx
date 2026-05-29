@@ -10,7 +10,7 @@
  *   - Hint text
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUI, selectCurrentVariant } from '@/store/uiStore';
 import { cabinetLabel, INTERACTION } from '@/types/ui';
@@ -109,19 +109,21 @@ export function SelectionPill() {
         </View>
         <View style={styles.divider} />
 
-        {/* Colour swatches — per-upper override */}
+        {/* Colour swatches — per-upper override (horizontal scroll) */}
         <Text style={styles.chipLabel}>ЦВЕТ ФАСАДА</Text>
-        <View style={styles.swatchRow}>
-          {PALETTE_MATERIALS.map((m) => (
-            <MiniSwatch
-              key={m.id}
-              material={m}
-              active={(upperMaterialMap[selectedUpperId] ?? globalMaterial) === m.id}
-              onPress={() => { hapticSwatch(); setUpperMaterial(selectedUpperId, m.id as MaterialId); }}
-              size={34}
-            />
-          ))}
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.swatchRow}>
+            {PALETTE_MATERIALS.map((m) => (
+              <MiniSwatch
+                key={m.id}
+                material={m}
+                active={(upperMaterialMap[selectedUpperId] ?? globalMaterial) === m.id}
+                onPress={() => { hapticSwatch(); setUpperMaterial(selectedUpperId, m.id as MaterialId); }}
+                size={34}
+              />
+            ))}
+          </View>
+        </ScrollView>
 
         <ChipRow
           label="РУЧКА"
@@ -201,19 +203,21 @@ export function SelectionPill() {
 
         return (
           <View>
-            {/* Colour swatches — per-cabinet override */}
+            {/* Colour swatches — per-cabinet override (horizontal scroll) */}
             <Text style={styles.chipLabel}>ЦВЕТ ФАСАДА</Text>
-            <View style={styles.swatchRow}>
-              {PALETTE_MATERIALS.map((m) => (
-                <MiniSwatch
-                  key={m.id}
-                  material={m}
-                  active={(cabinetMaterial[cab.id] ?? globalMaterial) === m.id}
-                  onPress={() => { hapticSwatch(); setCabMaterial(cab.id, m.id as MaterialId); }}
-                  size={34}
-                />
-              ))}
-            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.swatchRow}>
+                {PALETTE_MATERIALS.map((m) => (
+                  <MiniSwatch
+                    key={m.id}
+                    material={m}
+                    active={(cabinetMaterial[cab.id] ?? globalMaterial) === m.id}
+                    onPress={() => { hapticSwatch(); setCabMaterial(cab.id, m.id as MaterialId); }}
+                    size={34}
+                  />
+                ))}
+              </View>
+            </ScrollView>
 
             {hasDoor && (
               <>
@@ -371,9 +375,9 @@ const styles = StyleSheet.create({
   chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 4 },
   swatchRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: SPACE.xs,
     marginBottom: SPACE.sm,
+    paddingRight: SPACE.sm,
   },
   chipRow: { flexDirection: 'row', gap: SPACE.xs, flexWrap: 'wrap' },
   chip: {

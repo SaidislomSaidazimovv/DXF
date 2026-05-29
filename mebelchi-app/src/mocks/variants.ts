@@ -1,19 +1,12 @@
 /**
  * Variant generator — pure function, constraint-aware.
  *
- * Given (wallMm, constraints[]) returns 2..4 variants whose cabinets are
- * ordered so that:
- *   • sink   does NOT sit under a window (it would block the window)
- *   • stove  sits as close as possible to a gas_line constraint (if any)
- *   • sink   sits as close as possible to a drain_stack / water_inlet
- *     constraint (if any)
- *   • door / hood_vent positions are informational; we don't move cabinets
- *     for them in V1 — the variant generator's job is "good enough", the
- *     mebelchi can still fine-tune in Phase C.
- *
- * Strategy: generate the base shapes (unchanged), then run a post-pass that
- * permutes cabinets within each variant to satisfy constraints. We keep the
- * total width identical — this is just re-ordering, not resizing.
+ * Produces a large set (up to 24) of distinct kitchen layouts for a given
+ * wall, built combinatorially from layout "recipes" × filler types, then:
+ *   • filtered to those that physically fit the wall
+ *   • de-duplicated by cabinet signature
+ *   • re-ordered to satisfy Phase A constraints (sink not under window,
+ *     stove near gas, sink near drain/water)
  */
 import type { Cabinet, CabinetType, Constraint, Variant } from '@/types/ui';
 
@@ -23,16 +16,6 @@ function id(variantIdx: number, pos: number): string {
 
 function cab(variantIdx: number, pos: number, type: CabinetType, widthMm: number): Cabinet {
   return { id: id(variantIdx, pos), type, width: widthMm / 1000 };
-}
-
-function fill(variantIdx: number, startPos: number, total: number, count: number, type: CabinetType): Cabinet[] {
-  const w = Math.round(total / count / 10) * 10;
-  const last = total - w * (count - 1);
-  const out: Cabinet[] = [];
-  for (let i = 0; i < count; i++) {
-    out.push(cab(variantIdx, startPos + i, type, i === count - 1 ? last : w));
-  }
-  return out;
 }
 
 /**
@@ -49,21 +32,17 @@ function cabinetCentres(cabinets: Cabinet[]): number[] {
   return out;
 }
 
-/**
- * Return true if [aLeft, aRight] (mm) overlaps any window constraint range.
- */
+/** True if [left,right] (mm) overlaps any window constraint range. */
 function overlapsWindow(left: number, right: number, constraints: Constraint[]): boolean {
   for (const c of constraints) {
     if (c.type !== 'window') continue;
     const halfW = (c.widthMm ?? 800) / 2;
-    const wL = c.xMm - halfW;
-    const wR = c.xMm + halfW;
-    if (right > wL && left < wR) return true;
+    if (right > c.xMm - halfW && left < c.xMm + halfW) return true;
   }
   return false;
 }
 
-/** Distance from a cabinet's centre to nearest constraint of `kind`. */
+/** Distance from a cabinet centre to nearest constraint of `kind`. */
 function nearestDistance(centreMm: number, constraints: Constraint[], kind: Constraint['type']): number {
   let best = Infinity;
   for (const c of constraints) {
@@ -73,15 +52,11 @@ function nearestDistance(centreMm: number, constraints: Constraint[], kind: Cons
   return best;
 }
 
-/**
- * Score an ordering of cabinets given the constraint set.
- * LOWER is better. The scorer is a weighted sum of soft penalties.
- */
+/** Score an ordering against constraints. LOWER is better. */
 function scoreOrder(cabinets: Cabinet[], constraints: Constraint[]): number {
   if (constraints.length === 0) return 0;
   const centres = cabinetCentres(cabinets);
   let score = 0;
-
   let x = 0;
   for (let i = 0; i < cabinets.length; i++) {
     const c = cabinets[i];
@@ -90,38 +65,29 @@ function scoreOrder(cabinets: Cabinet[], constraints: Constraint[]): number {
     const right = x + wMm;
     x = right;
 
-    /* Penalty 1: sink under window — hard avoid, weight 10_000 */
     if ((c.type === 'sink' || c.type === 'sink_stove') &&
         overlapsWindow(left, right, constraints)) {
       score += 10_000;
     }
-
-    /* Penalty 2: stove far from gas_line — linear, weight 5 per mm */
     if ((c.type === 'stove' || c.type === 'sink_stove') &&
         constraints.some((k) => k.type === 'gas_line')) {
-      const d = nearestDistance(centres[i], constraints, 'gas_line');
-      score += d * 5;
+      score += nearestDistance(centres[i], constraints, 'gas_line') * 5;
     }
-
-    /* Penalty 3: sink far from drain_stack / water_inlet — weight 3 per mm */
     if (c.type === 'sink' || c.type === 'sink_stove') {
-      const dDrain = nearestDistance(centres[i], constraints, 'drain_stack');
-      const dWater = nearestDistance(centres[i], constraints, 'water_inlet');
-      const d = Math.min(dDrain, dWater);
+      const d = Math.min(
+        nearestDistance(centres[i], constraints, 'drain_stack'),
+        nearestDistance(centres[i], constraints, 'water_inlet'),
+      );
       if (isFinite(d)) score += d * 3;
     }
   }
   return score;
 }
 
-/**
- * Try every permutation of the cabinet list and return the one with the
- * lowest constraint penalty. We limit to ≤ 7 cabinets (5040 permutations)
- * which covers every variant the generator emits.
- */
+/** Best permutation (≤7 cabinets) under the constraint scorer. */
 function pickBestOrder(cabinets: Cabinet[], constraints: Constraint[]): Cabinet[] {
   if (cabinets.length <= 1 || constraints.length === 0) return cabinets;
-  if (cabinets.length > 7) return cabinets;  // safety
+  if (cabinets.length > 7) return cabinets;
 
   let bestOrder = cabinets.slice();
   let bestScore = scoreOrder(bestOrder, constraints);
@@ -129,10 +95,7 @@ function pickBestOrder(cabinets: Cabinet[], constraints: Constraint[]): Cabinet[
   const permute = (arr: Cabinet[], k: number) => {
     if (k === arr.length - 1) {
       const s = scoreOrder(arr, constraints);
-      if (s < bestScore) {
-        bestScore = s;
-        bestOrder = arr.slice();
-      }
+      if (s < bestScore) { bestScore = s; bestOrder = arr.slice(); }
       return;
     }
     for (let i = k; i < arr.length; i++) {
@@ -145,203 +108,110 @@ function pickBestOrder(cabinets: Cabinet[], constraints: Constraint[]): Cabinet[
   return bestOrder;
 }
 
-/**
- * Apply constraint-aware re-ordering to a list of base variants.
- * Cabinet ids stay stable (re-ordering doesn't rename them).
- */
 function applyConstraints(variants: Variant[], constraints: Constraint[]): Variant[] {
   if (constraints.length === 0) return variants;
-  return variants.map((v) => ({
-    ...v,
-    cabinets: pickBestOrder(v.cabinets, constraints),
-  }));
+  return variants.map((v) => ({ ...v, cabinets: pickBestOrder(v.cabinets, constraints) }));
 }
 
-export function generateVariants(wallMm: number, constraints: Constraint[] = []): Variant[] {
-  const variants: Variant[] = [];
-  const W = wallMm;
+// ── Recipe model ──────────────────────────────────────────────
+type Piece = { type: CabinetType; w: number } | 'F';   // 'F' = filler (absorbs remainder)
+interface Recipe { name: string; pieces: Piece[]; uppers: boolean; shelves: boolean; }
 
-  if (W <= 1500) {
-    variants.push({
+const P = (type: CabinetType, w: number): Piece => ({ type, w });
+const F: Piece = 'F';
+
+/* Appliance widths kept modest so layouts still fit small (1500mm) walls. */
+const SINK = 700, STOVE = 500, FRIDGE = 600, TALL = 550, COMBO = 1000, BASE = 500;
+
+const RECIPES: Recipe[] = [
+  { name: 'Линейная',            pieces: [P('sink', SINK), P('stove', STOVE), F],                                uppers: true,  shelves: false },
+  { name: 'Зеркальная',          pieces: [F, P('sink', SINK), P('stove', STOVE)],                                uppers: true,  shelves: false },
+  { name: 'Разнесённая',         pieces: [P('sink', SINK), F, P('stove', STOVE)],                                uppers: true,  shelves: false },
+  { name: 'С тумбой слева',      pieces: [P('base', BASE), P('sink', SINK), P('stove', STOVE), F],               uppers: true,  shelves: false },
+  { name: 'С тумбой справа',     pieces: [F, P('sink', SINK), P('stove', STOVE), P('base', BASE)],               uppers: true,  shelves: false },
+  { name: 'С холодильником',     pieces: [P('fridge', FRIDGE), P('sink', SINK), P('stove', STOVE), F],           uppers: true,  shelves: false },
+  { name: 'Холодильник справа',  pieces: [F, P('sink', SINK), P('stove', STOVE), P('fridge', FRIDGE)],           uppers: false, shelves: true  },
+  { name: 'С пеналом',           pieces: [P('tall', TALL), P('sink', SINK), P('stove', STOVE), F],               uppers: true,  shelves: false },
+  { name: 'Пенал + холодильник', pieces: [P('fridge', FRIDGE), P('tall', TALL), P('sink', SINK), P('stove', STOVE), F], uppers: true, shelves: false },
+  { name: 'Объединённая',        pieces: [P('sink_stove', COMBO), F],                                            uppers: true,  shelves: false },
+  { name: 'Объединённая центр',  pieces: [F, P('sink_stove', COMBO), F],                                         uppers: true,  shelves: false },
+  { name: 'Объединённая + холод',pieces: [P('fridge', FRIDGE), P('sink_stove', COMBO), F],                       uppers: false, shelves: true  },
+  { name: 'Симметрия',           pieces: [P('base', BASE), P('sink', SINK), P('stove', STOVE), P('base', BASE), F], uppers: true, shelves: false },
+  { name: 'Двойные тумбы',       pieces: [P('sink', SINK), P('stove', STOVE), F, F],                             uppers: true,  shelves: false },
+  { name: 'С нишей',             pieces: [P('fridge', FRIDGE), F, P('sink', SINK), P('stove', STOVE), F],        uppers: true,  shelves: true  },
+  { name: 'Студийная',           pieces: [P('sink', SINK), P('stove', STOVE), F],                                uppers: false, shelves: true  },
+];
+
+const FILLERS: { type: CabinetType; label: string }[] = [
+  { type: 'base',    label: 'тумбы' },
+  { type: 'drawer3', label: 'ящики' },
+  { type: 'drawer4', label: 'ящики×4' },
+];
+
+const MIN_FILLER = 250;   // mm — below this a filler cabinet is silly
+const MAX_FILLER = 1100;  // mm — above this prefer a recipe with more fillers
+const MAX_VARIANTS = 24;
+
+export function generateVariants(wallMm: number, constraints: Constraint[] = []): Variant[] {
+  const W = wallMm;
+  const out: Variant[] = [];
+  const seen = new Set<string>();
+
+  for (const r of RECIPES) {
+    const fixedSum = r.pieces.reduce((s, p) => s + (p === 'F' ? 0 : p.w), 0);
+    const fillerCount = r.pieces.filter((p) => p === 'F').length;
+    if (fillerCount === 0) continue;
+
+    const remainder = W - fixedSum;
+    if (remainder < fillerCount * MIN_FILLER) continue;
+    const per = Math.round(remainder / fillerCount / 10) * 10;
+    if (per < MIN_FILLER || per > MAX_FILLER) continue;
+
+    for (const fk of FILLERS) {
+      const idx = out.length;
+      const cabs: Cabinet[] = [];
+      let pos = 0;
+      let fillersDone = 0;
+      for (const p of r.pieces) {
+        if (p === 'F') {
+          const w = fillersDone === fillerCount - 1
+            ? remainder - per * (fillerCount - 1)   // last filler absorbs rounding
+            : per;
+          cabs.push(cab(idx, pos++, fk.type, w));
+          fillersDone++;
+        } else {
+          cabs.push(cab(idx, pos++, p.type, p.w));
+        }
+      }
+
+      const sig = cabs.map((c) => c.type + Math.round(c.width * 1000)).join('|');
+      if (seen.has(sig)) continue;
+      seen.add(sig);
+
+      out.push({
+        name: `${r.name} · ${fk.label}`,
+        cabinets: cabs,
+        hasUppers: r.uppers,
+        hasSideShelves: r.shelves,
+      });
+      if (out.length >= MAX_VARIANTS) break;
+    }
+    if (out.length >= MAX_VARIANTS) break;
+  }
+
+  /* Fallback for very tight walls where no recipe fit. */
+  if (out.length === 0) {
+    const sinkW = Math.min(700, Math.round(W * 0.5));
+    out.push({
       name: 'Компакт',
       cabinets: [
-        cab(0, 0, 'sink',   600),
-        cab(0, 1, 'stove',  500),
-        cab(0, 2, 'base',   W - 1100),
+        cab(0, 0, 'sink', sinkW),
+        cab(0, 1, 'stove', Math.max(300, W - sinkW)),
       ],
       hasUppers: true,
       hasSideShelves: false,
-    });
-    variants.push({
-      name: 'Объединённая',
-      cabinets: [
-        cab(1, 0, 'sink_stove', 1000),
-        cab(1, 1, 'drawer3',    W - 1000),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'С ящиками',
-      cabinets: [
-        cab(2, 0, 'sink',    600),
-        cab(2, 1, 'stove',   500),
-        cab(2, 2, 'drawer3', W - 1100),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'Открытые полки',
-      cabinets: [
-        cab(3, 0, 'sink',  600),
-        cab(3, 1, 'stove', 500),
-        cab(3, 2, 'base',  W - 1100),
-      ],
-      hasUppers: false,
-      hasSideShelves: true,
-    });
-  } else if (W <= 2100) {
-    variants.push({
-      name: 'Линейная',
-      cabinets: [
-        cab(0, 0, 'base',   500),
-        cab(0, 1, 'sink',   800),
-        cab(0, 2, 'stove',  600),
-        cab(0, 3, 'drawer3', W - 1900),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'С ящиками',
-      cabinets: [
-        cab(1, 0, 'drawer4', 600),
-        cab(1, 1, 'sink',    800),
-        cab(1, 2, 'stove',   600),
-        cab(1, 3, 'drawer3', W - 2000),
-      ],
-      hasUppers: true,
-      hasSideShelves: true,
-    });
-    variants.push({
-      name: 'Компакт',
-      cabinets: [
-        cab(2, 0, 'sink',  900),
-        cab(2, 1, 'stove', 600),
-        cab(2, 2, 'base',  W - 1500),
-      ],
-      hasUppers: false,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'С пеналом',
-      cabinets: [
-        cab(3, 0, 'tall',   500),
-        cab(3, 1, 'sink',   700),
-        cab(3, 2, 'stove',  600),
-        cab(3, 3, 'drawer3', W - 1800),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-  } else if (W <= 2700) {
-    variants.push({
-      name: 'Линейная',
-      cabinets: [
-        cab(0, 0, 'base',    500),
-        cab(0, 1, 'drawer3', 500),
-        cab(0, 2, 'sink',    800),
-        cab(0, 3, 'stove',   600),
-        cab(0, 4, 'base',    W - 2400),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'С пеналом',
-      cabinets: [
-        cab(1, 0, 'tall',    600),
-        cab(1, 1, 'sink',    800),
-        cab(1, 2, 'stove',   600),
-        cab(1, 3, 'drawer3', W - 2000),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'С холодильником',
-      cabinets: [
-        cab(2, 0, 'fridge',  600),
-        cab(2, 1, 'base',    500),
-        cab(2, 2, 'sink',    800),
-        cab(2, 3, 'stove',   600),
-        cab(2, 4, 'drawer3', W - 2500),
-      ],
-      hasUppers: false,
-      hasSideShelves: true,
-    });
-    variants.push({
-      name: 'Два блока ящиков',
-      cabinets: [
-        cab(3, 0, 'drawer4', 600),
-        cab(3, 1, 'sink',    800),
-        cab(3, 2, 'stove',   600),
-        cab(3, 3, 'drawer3', 500),
-        cab(3, 4, 'base',    W - 2500),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-  } else {
-    variants.push({
-      name: 'С холодильником и пеналом',
-      cabinets: [
-        cab(0, 0, 'fridge',  600),
-        cab(0, 1, 'tall',    600),
-        cab(0, 2, 'sink',    800),
-        cab(0, 3, 'stove',   600),
-        cab(0, 4, 'drawer3', W - 2600),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'Симметрия',
-      cabinets: [
-        cab(1, 0, 'base',    500),
-        cab(1, 1, 'drawer3', 500),
-        cab(1, 2, 'sink',    800),
-        cab(1, 3, 'stove',   600),
-        cab(1, 4, 'drawer3', 500),
-        cab(1, 5, 'base',    W - 2900),
-      ],
-      hasUppers: true,
-      hasSideShelves: false,
-    });
-    variants.push({
-      name: 'С большой мойкой',
-      cabinets: [
-        cab(2, 0, 'fridge',     600),
-        cab(2, 1, 'sink_stove', 1100),
-        ...fill(2, 2, W - 1700, 2, 'drawer3'),
-      ],
-      hasUppers: false,
-      hasSideShelves: true,
-    });
-    variants.push({
-      name: 'Полный гарнитур',
-      cabinets: [
-        cab(3, 0, 'fridge',  600),
-        cab(3, 1, 'drawer4', 600),
-        cab(3, 2, 'sink',    800),
-        cab(3, 3, 'stove',   600),
-        cab(3, 4, 'drawer3', W - 2600),
-      ],
-      hasUppers: true,
-      hasSideShelves: true,
     });
   }
 
-  return applyConstraints(variants, constraints);
+  return applyConstraints(out, constraints);
 }

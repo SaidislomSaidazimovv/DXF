@@ -62,15 +62,12 @@ export type CeilingHeight = 2400 | 2500 | 2600 | 2700 | 3000;
 // MATERIALS
 // ============================================================
 
-export type MaterialId =
-  | 'white_classic'
-  | 'cashmere'
-  | 'oak_light'
-  | 'graphite'
-  | 'walnut'
-  | 'anthracite'
-  | 'matte_white'        // for two-tone advisor — facade variant
-  | 'standard_white';    // for two-tone advisor — carcass variant
+/**
+ * Material id — a free string so the palette can grow without touching the
+ * type. Canonical ids live in `mocks/materials.ts`; advisor rules reference
+ * 'matte_white' / 'standard_white'.
+ */
+export type MaterialId = string;
 
 export interface Material {
   id: MaterialId;
