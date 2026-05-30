@@ -29,6 +29,7 @@ import { accentForFacade, lineForFacade } from '@/lib/colors';
 import { Sink } from './Sink';
 import { Stove } from './Stove';
 import { DrawerStack } from './cabinet/DrawerStack';
+import { DoorFront } from './cabinet/DoorFront';
 import { useUI } from '@/store/uiStore';
 
 interface Props {
@@ -191,95 +192,6 @@ function stopAnd(cb: () => void) {
 
 // ── Sub-renderers ─────────────────────────────────────────────
 
-/**
- * ShakerFrame — a real routed shaker door: a recessed centre panel (set
- * back from the door face) ringed by a darker shadow groove, so it reads
- * as carpentry rather than a painted-on rectangle.
- */
-function ShakerFrame({
-  bodyW, bodyHeight, bodyY, facadeColor, lineCol,
-}: { bodyW: number; bodyHeight: number; bodyY: number; facadeColor: number; lineCol: number }) {
-  const inset = 0.07;
-  const panelW = bodyW - inset * 2;
-  const panelH = bodyHeight - inset * 2;
-  const rim = 0.006;          // shadow groove thickness
-  const recessZ = FRONT - 0.006;
-  const shadow = <meshStandardMaterial color={lineCol} transparent opacity={0.4} />;
-  return (
-    <>
-      {/* Recessed centre panel — slightly back, same facade colour */}
-      <mesh position={[0, bodyY, recessZ]}>
-        <boxGeometry args={[panelW, panelH, 0.004]} />
-        <meshStandardMaterial color={facadeColor} roughness={0.62} />
-      </mesh>
-      {/* Shadow groove around the recess (top/bottom/left/right) */}
-      <mesh position={[0, bodyY + panelH / 2 + rim / 2, FRONT - 0.002]}>
-        <boxGeometry args={[panelW + rim * 2, rim, 0.002]} />{shadow}
-      </mesh>
-      <mesh position={[0, bodyY - panelH / 2 - rim / 2, FRONT - 0.002]}>
-        <boxGeometry args={[panelW + rim * 2, rim, 0.002]} />{shadow}
-      </mesh>
-      <mesh position={[-panelW / 2 - rim / 2, bodyY, FRONT - 0.002]}>
-        <boxGeometry args={[rim, panelH, 0.002]} />{shadow}
-      </mesh>
-      <mesh position={[panelW / 2 + rim / 2, bodyY, FRONT - 0.002]}>
-        <boxGeometry args={[rim, panelH, 0.002]} />{shadow}
-      </mesh>
-    </>
-  );
-}
-
-/**
- * GlassDoor — aluminium frame with a dark tinted glass insert (oynali shkaf).
- */
-function GlassDoor({
-  bodyW, bodyHeight, bodyY,
-}: { bodyW: number; bodyHeight: number; bodyY: number }) {
-  const inset = 0.05;
-  const glassW = bodyW - inset * 2;
-  const glassH = bodyHeight - inset * 2;
-  const fr = 0.014;           // aluminium frame width
-  const chrome = <meshStandardMaterial color={0xb9bec2} roughness={0.3} metalness={0.85} />;
-  return (
-    <>
-      {/* Tinted glass — translucent, slightly reflective */}
-      <mesh position={[0, bodyY, FRONT + 0.004]}>
-        <boxGeometry args={[glassW, glassH, 0.003]} />
-        <meshStandardMaterial color={0x20262b} transparent opacity={0.55} roughness={0.12} metalness={0.4} />
-      </mesh>
-      {/* Aluminium frame border */}
-      <mesh position={[0, bodyY + glassH / 2 + fr / 2, FRONT + 0.005]}>
-        <boxGeometry args={[glassW + fr * 2, fr, 0.006]} />{chrome}
-      </mesh>
-      <mesh position={[0, bodyY - glassH / 2 - fr / 2, FRONT + 0.005]}>
-        <boxGeometry args={[glassW + fr * 2, fr, 0.006]} />{chrome}
-      </mesh>
-      <mesh position={[-glassW / 2 - fr / 2, bodyY, FRONT + 0.005]}>
-        <boxGeometry args={[fr, glassH, 0.006]} />{chrome}
-      </mesh>
-      <mesh position={[glassW / 2 + fr / 2, bodyY, FRONT + 0.005]}>
-        <boxGeometry args={[fr, glassH, 0.006]} />{chrome}
-      </mesh>
-    </>
-  );
-}
-
-function Grooves({
-  bodyW, bodyHeight, bodyY, lineCol,
-}: { bodyW: number; bodyHeight: number; bodyY: number; lineCol: number }) {
-  const grooveW = bodyW - 0.08;
-  const startY = bodyY - bodyHeight / 2 + 0.18;
-  return (
-    <>
-      {[0, 1, 2].map((k) => (
-        <mesh key={k} position={[0, startY + k * 0.16, FRONT + 0.001]}>
-          <boxGeometry args={[grooveW, 0.004, 0.002]} />
-          <meshStandardMaterial color={lineCol} transparent opacity={0.22} />
-        </mesh>
-      ))}
-    </>
-  );
-}
 
 function DoorHandle({
   xCenter,
@@ -615,43 +527,6 @@ export function Cabinet({
   const onFaucetPress = () => onFocusDetail('faucet');
 
   // Door handles per door
-  const doorHandles: React.ReactNode = isDrawer || isFridge
-    ? null
-    : isWideDoor
-    ? (
-      <>
-        <DoorHandle
-          xCenter={-bodyW / 4}
-          bodyY={bodyY}
-          bodyHeight={bodyHeight}
-          doorWidth={bodyW / 2}
-          type={handle}
-          onPress={onHandlePress}
-          accent={accent}
-        />
-        <DoorHandle
-          xCenter={+bodyW / 4}
-          bodyY={bodyY}
-          bodyHeight={bodyHeight}
-          doorWidth={bodyW / 2}
-          type={handle}
-          onPress={onHandlePress}
-          accent={accent}
-        />
-      </>
-    )
-    : (
-      <DoorHandle
-        xCenter={0}
-        bodyY={bodyY}
-        bodyHeight={bodyHeight}
-        doorWidth={bodyW}
-        type={handle}
-        onPress={onHandlePress}
-        accent={accent}
-      />
-    );
-
   return (
     <group position={position}>
       {/* Body — main click target (uses face normal to differentiate door vs side).
@@ -704,12 +579,20 @@ export function Cabinet({
         </mesh>
       )}
 
-      {/* Double-door divider */}
-      {isWideDoor && (
-        <mesh position={[0, bodyY, FRONT]}>
-          <boxGeometry args={[0.003, bodyHeight - 0.05, 0.002]} />
-          <meshStandardMaterial color={lineCol} transparent opacity={0.22} />
-        </mesh>
+      {/* Realistic proud door panel(s) with reveal gaps + style detail */}
+      {hasDoor && !isXray && (
+        <DoorFront
+          bodyW={bodyW}
+          bodyHeight={bodyHeight}
+          bodyY={bodyY}
+          facadeColor={facadeColor}
+          lineCol={lineCol}
+          accent={accent}
+          style={doorStyle}
+          handle={handle}
+          isWide={isWideDoor}
+          onSelect={onSelect}
+        />
       )}
 
       {/* Realistic 3D drawer fronts (replaces the old divider lines) */}
@@ -734,19 +617,7 @@ export function Cabinet({
         </mesh>
       )}
 
-      {/* Door style overlay */}
-      {hasDoor && doorStyle === 'shaker' && (
-        <ShakerFrame bodyW={bodyW} bodyHeight={bodyHeight} bodyY={bodyY} facadeColor={facadeColor} lineCol={lineCol} />
-      )}
-      {hasDoor && doorStyle === 'grooved' && (
-        <Grooves bodyW={bodyW} bodyHeight={bodyHeight} bodyY={bodyY} lineCol={lineCol} />
-      )}
-      {hasDoor && doorStyle === 'glass' && (
-        <GlassDoor bodyW={bodyW} bodyHeight={bodyHeight} bodyY={bodyY} />
-      )}
-
-      {/* Handles — doors only (drawer handles live inside DrawerStack) */}
-      {doorHandles}
+      {/* Door style + handles are rendered by <DoorFront> above. */}
       {isFridge && <FridgeHandle bodyW={bodyW} bodyHeight={bodyHeight} onPress={onHandlePress} />}
 
       {/* Stand-alone stove cabinet — full oven front */}
