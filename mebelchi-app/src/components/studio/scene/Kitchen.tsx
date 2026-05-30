@@ -118,9 +118,11 @@ export function Kitchen() {
         layout.placed
           .filter((p) => !isTallType(p.cab.type))
           .map((p) => {
-            /* Upper has its OWN material/handle override (falls back to the
-               base cabinet's, then global) so it can be customised separately. */
-            const upMat = upperMaterial[p.cab.id] ?? cabinetMaterial[p.cab.id];
+            /* Upper is FULLY independent of the base cabinet below it: it uses
+               its OWN override, else the global default — never the base
+               cabinet's per-cabinet material/handle. So changing a base colour
+               never touches the upper. */
+            const upMat = upperMaterial[p.cab.id];
             const facade = upMat ? materialById(upMat).facade : mat.facade;
             return (
               <Upper
@@ -128,7 +130,7 @@ export function Kitchen() {
                 position={p.groupPosition}
                 width={p.cab.width}
                 facadeColor={facade}
-                handle={upperHandle[p.cab.id] ?? cabinetHandle[p.cab.id] ?? 'bar'}
+                handle={upperHandle[p.cab.id] ?? 'bar'}
                 hasHandle={true}
                 isSelected={selectedUpperId === p.cab.id}
                 onSelect={() => { hapticTap(); selectUpper(p.cab.id); }}
