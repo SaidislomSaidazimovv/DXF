@@ -23,7 +23,6 @@ import { AdjacencyWarning } from '@/components/studio/AdjacencyWarning';
 import { StudioBottomBar } from '@/components/studio/StudioBottomBar';
 import { Canvas3D } from '@/components/studio/scene/Canvas3D';
 import { SelectionPill } from '@/components/studio/SelectionPill';
-import { MaterialDrawer } from '@/components/studio/MaterialDrawer';
 import { StyleBar } from '@/components/studio/StyleBar';
 import { PhaseStepper } from '@/components/phase/PhaseStepper';
 import { COLORS, SPACE, TYPE, RADII } from '@/lib/tokens';
@@ -67,7 +66,6 @@ export default function PhaseC() {
     [cycleVariant]
   );
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const t = useT();
 
   const price = useMemo(
@@ -133,10 +131,7 @@ export default function PhaseC() {
           onPress={() => { hapticTap(); setExtraOpen((v) => !v); }}
           style={styles.extraBtn}
         >
-          <Text style={styles.extraBtnTxt}>{extraOpen ? '▾' : '▸'} Доп.</Text>
-        </Pressable>
-        <Pressable onPress={onAdvance} style={styles.advanceBtn}>
-          <Text style={styles.advanceTxt}>К инженерии →</Text>
+          <Text style={styles.extraBtnTxt}>{extraOpen ? '▾' : '▸'} Доп. настройки</Text>
         </Pressable>
       </View>
 
@@ -194,15 +189,10 @@ export default function PhaseC() {
       <StudioBottomBar
         variantIdx={variantIdx}
         variantCount={variants.length}
-        onOpenMaterial={() => { hapticTap(); setDrawerOpen(true); }}
-        onSave={() => {
-          hapticTap();
-          saveCurrentProject();
-        }}
         onCycleVariant={() => { hapticTap(); cycleVariant(1); }}
+        ctaLabel="К инженерии →"
+        onCta={onAdvance}
       />
-
-      <MaterialDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -265,17 +255,9 @@ const styles = StyleSheet.create({
   advanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: SPACE.lg,
     paddingVertical: SPACE.xs,
   },
-  advanceBtn: {
-    paddingHorizontal: SPACE.lg,
-    paddingVertical: SPACE.sm,
-    borderRadius: RADII.pill,
-    backgroundColor: COLORS.ink,
-  },
-  advanceTxt: { ...TYPE.bodyMed, color: '#fff', letterSpacing: 0.3 },
   extraBtn: {
     paddingHorizontal: SPACE.md,
     paddingVertical: SPACE.xs,

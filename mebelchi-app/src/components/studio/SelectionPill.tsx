@@ -258,11 +258,11 @@ export function SelectionPill() {
       {(() => {
         const type = cab.type;
         const isDrawer = type === 'drawer3' || type === 'drawer4';
-        const isShelf = type === 'open_shelf' || type === 'wine';
+        const isShelf = type === 'open_shelf';
         const hasSink = type === 'sink' || type === 'sink_stove';
         const hasStove = type === 'stove' || type === 'sink_stove';
         const hasDoor = !isDrawer && !isShelf && !hasSink && !hasStove && type !== 'fridge';
-        const carcassType = isDrawer ? 'drawer3' : type === 'open_shelf' ? 'open_shelf' : type === 'wine' ? 'wine' : 'base';
+        const carcassType = isDrawer ? 'drawer3' : type === 'open_shelf' ? 'open_shelf' : 'base';
 
         return (
           <ScrollView style={styles.controls} nestedScrollEnabled showsVerticalScrollIndicator={false}>
@@ -287,7 +287,7 @@ export function SelectionPill() {
             {(hasDoor || isDrawer || isShelf) && (
               <ChipRow
                 label="ТИП ШКАФА"
-                options={[['base', 'Двери'], ['drawer3', 'Ящики'], ['open_shelf', 'Полки'], ['wine', 'Винотека']]}
+                options={[['base', 'Двери'], ['drawer3', 'Ящики'], ['open_shelf', 'Полки']]}
                 value={carcassType}
                 onPick={(v) => setCabinetType(cab.id, v as any)}
               />
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.line, marginVertical: SPACE.md },
   hint: { ...TYPE.hint, color: COLORS.inkFaint, fontSize: 10, textAlign: 'center', marginTop: SPACE.xs },
 
-  controls: { maxHeight: 210 },
+  controls: { maxHeight: 186 },
   chipBlock: { marginBottom: SPACE.sm },
   chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 4 },
   swatchRow: {

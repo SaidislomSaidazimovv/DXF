@@ -484,9 +484,8 @@ export function Cabinet({
   const isStoveOnly = cabinet.type === 'stove';
   const isSinkOnly  = cabinet.type === 'sink';
   const isOpenShelf = cabinet.type === 'open_shelf';
-  const isWine = cabinet.type === 'wine';
   /* The regular door system is disabled for any cabinet that has its own facade */
-  const usesCustomFront = isStoveOnly || isSinkOnly || isCombo || isOpenShelf || isWine;
+  const usesCustomFront = isStoveOnly || isSinkOnly || isCombo || isOpenShelf;
   const isWideDoor = !isDrawer && !isFridge && !usesCustomFront && cabinet.width > DOUBLE_DOOR_W;
   const hasDoor = !isDrawer && !isFridge && !usesCustomFront;
 
@@ -535,14 +534,14 @@ export function Cabinet({
           In X-ray mode the facade drops to 35% opacity so the carcass and
           drilling marks become visible. */}
       <mesh
-        position={[0, bodyY, (isOpenShelf || isWine) ? -CABINET_DEPTH / 2 + 0.01 : 0]}
+        position={[0, bodyY, isOpenShelf ? -CABINET_DEPTH / 2 + 0.01 : 0]}
         onClick={onBodyClick}
       >
-        {/* Open shelf / wine cabinets are a thin dark BACK panel so the
-            interior (frame + shelves/lattice) reads as open. */}
-        <boxGeometry args={[bodyW, bodyHeight, (isOpenShelf || isWine) ? 0.02 : CABINET_DEPTH]} />
+        {/* Open-shelf cabinets are a thin dark BACK panel so the
+            interior (frame + shelves) reads as open. */}
+        <boxGeometry args={[bodyW, bodyHeight, isOpenShelf ? 0.02 : CABINET_DEPTH]} />
         <meshStandardMaterial
-          color={isFridge ? 0xd6d9dc : (isOpenShelf || isWine) ? 0x241f1b : facadeColor}
+          color={isFridge ? 0xd6d9dc : isOpenShelf ? 0x241f1b : facadeColor}
           roughness={isFridge ? 0.32 : 0.6}
           metalness={isFridge ? 0.5 : 0}
           transparent={isXray}
@@ -728,24 +727,6 @@ export function Cabinet({
             <mesh key={'sh' + i} position={[0, bodyY + dy, 0]}>
               <boxGeometry args={[bodyW - 0.04, 0.018, CABINET_DEPTH - 0.04]} />
               <meshStandardMaterial color={facadeColor} roughness={0.65} />
-            </mesh>
-          ))}
-        </group>
-      )}
-
-      {/* Wine rack — diagonal X-lattice over the dark cavity */}
-      {isWine && !isXray && (
-        <group>
-          {[bodyY + bodyHeight / 2 - 0.01, bodyY - bodyHeight / 2 + 0.01].map((y, i) => (
-            <mesh key={'wtb' + i} position={[0, y, 0]}>
-              <boxGeometry args={[bodyW, 0.02, CABINET_DEPTH]} />
-              <meshStandardMaterial color={facadeColor} roughness={0.6} />
-            </mesh>
-          ))}
-          {[-1, 1].map((s, i) => (
-            <mesh key={'x' + i} position={[0, bodyY, 0]} rotation={[0, 0, s * 0.7]}>
-              <boxGeometry args={[0.012, bodyHeight * 1.25, 0.012]} />
-              <meshStandardMaterial color={accent} roughness={0.5} metalness={0.3} />
             </mesh>
           ))}
         </group>

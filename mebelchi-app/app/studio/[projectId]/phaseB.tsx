@@ -33,7 +33,6 @@ import { AdjacencyWarning } from '@/components/studio/AdjacencyWarning';
 import { StudioBottomBar } from '@/components/studio/StudioBottomBar';
 import { Canvas3D } from '@/components/studio/scene/Canvas3D';
 import { SelectionPill } from '@/components/studio/SelectionPill';
-import { MaterialDrawer } from '@/components/studio/MaterialDrawer';
 import { StyleBar } from '@/components/studio/StyleBar';
 import { PhaseStepper } from '@/components/phase/PhaseStepper';
 import { COLORS, SPACE, TYPE, RADII } from '@/lib/tokens';
@@ -77,7 +76,6 @@ export default function PhaseB() {
     [cycleVariant]
   );
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [ceremony, setCeremony] = useState(false);
   const [showClose, setShowClose] = useState(false);
   const [showAgree, setShowAgree] = useState(false);
@@ -220,38 +218,20 @@ export default function PhaseB() {
         </View>
       )}
 
-      {/* Confirmation / show-customer ribbon */}
+      {/* Bottom action bar — primary CTA + variant counter */}
       <Animated.View style={{ opacity: chromeOpacity }} pointerEvents={ceremony ? 'none' : 'auto'}>
-        {confirmation ? (
-          <View style={styles.confirmedRibbon}>
-            <Text style={styles.confirmedTxt}>
-              ✓ Согласовано · {confirmation.variantName}
-            </Text>
-            <Pressable onPress={onAdvanceToC} hitSlop={8} style={styles.advance}>
-              <Text style={styles.advanceTxt}>К настройке →</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.confirmRow}>
-            <Pressable onPress={enterCeremony} style={styles.confirmBtn}>
-              <Text style={styles.confirmBtnTxt}>Показать клиенту →</Text>
-            </Pressable>
-          </View>
+        {confirmation && (
+          <Text style={styles.confirmedTxt}>✓ Согласовано · {confirmation.variantName}</Text>
         )}
-
         <StudioBottomBar
           variantIdx={variantIdx}
           variantCount={variants.length}
-          onOpenMaterial={() => { hapticTap(); setDrawerOpen(true); }}
-          onSave={() => {
-            hapticTap();
-            saveCurrentProject();
-          }}
           onCycleVariant={() => { hapticTap(); cycleVariant(1); }}
+          ctaLabel={confirmation ? 'К настройке →' : 'Показать клиенту →'}
+          onCta={confirmation ? onAdvanceToC : enterCeremony}
+          tone={confirmation ? 'good' : 'default'}
         />
       </Animated.View>
-
-      <MaterialDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -277,33 +257,12 @@ const styles = StyleSheet.create({
   },
   dotsRow: { paddingTop: SPACE.sm, paddingBottom: SPACE.xs },
   warnRow: { minHeight: 22, justifyContent: 'center' },
-  confirmRow: {
-    paddingHorizontal: SPACE.lg,
-    paddingVertical: SPACE.xs,
-    alignItems: 'center',
+  confirmedTxt: {
+    ...TYPE.body,
+    color: COLORS.good,
+    textAlign: 'center',
+    paddingTop: SPACE.xs,
   },
-  confirmBtn: {
-    paddingHorizontal: SPACE.lg,
-    paddingVertical: SPACE.sm,
-    borderRadius: RADII.pill,
-    backgroundColor: COLORS.ink,
-  },
-  confirmBtnTxt: { ...TYPE.bodyMed, color: '#fff', letterSpacing: 0.3 },
-  confirmedRibbon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACE.lg,
-    paddingVertical: SPACE.sm,
-    backgroundColor: COLORS.goodBg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.good,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.good,
-  },
-  confirmedTxt: { ...TYPE.body, color: COLORS.good },
-  advance: { paddingHorizontal: SPACE.sm, paddingVertical: 4 },
-  advanceTxt: { ...TYPE.bodyMed, color: COLORS.good },
 
   /* Ceremony pills */
   closePill: {

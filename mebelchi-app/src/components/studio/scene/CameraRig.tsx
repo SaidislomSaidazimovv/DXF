@@ -35,7 +35,8 @@ const FOV = 38;
  *     from the top edge (fov 38°).
  *   • camera height ∝ dist gives a gentle downward pitch.
  * Caller passes the element's REAL centre and a distance big enough that the
- * element's full height fits in the top band (≥ ~3.4 for a base cabinet).
+ * element's full height fits in the top band, clear of the pill (≥ ~4.5 for a
+ * base cabinet so the plinth/floor edge sits ~38% from top, not ~46%).
  */
 function frameTarget(
   cx: number,
@@ -116,7 +117,7 @@ export function CameraRig() {
       const worktopY =
         GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS;
       const cz = variant ? (findPlaced(variant, variant.cabinets[0]?.id)?.groupPosition[2] ?? 0) : 0;
-      target = frameTarget(0, worktopY, cz, 3.6);
+      target = frameTarget(0, worktopY, cz, 4.2);
     } else if (selectedUpperId) {
       /* Wall (upper) cabinet — true centre = upper mid-height. */
       camera.up.set(0, 1, 0);
@@ -141,7 +142,7 @@ export function CameraRig() {
         const detailY = selectedDetail === 'faucet' ? worktopY + 0.14 : worktopY + 0.04;
         const detailZ =
           placed.groupPosition[2] - (selectedDetail === 'faucet' ? GEOMETRY.CABINET_DEPTH * 0.18 : 0);
-        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 2.9, detailZ);
+        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 3.4, detailZ);
       } else {
         target = OVERVIEW_TARGET;
       }
@@ -157,7 +158,7 @@ export function CameraRig() {
             placed.groupPosition[0],
             baseCenterY,
             placed.groupPosition[2],
-            3.7 + placed.cab.width * 0.4,
+            4.5 + placed.cab.width * 0.4,
           )
         : OVERVIEW_TARGET;
     } else {

@@ -120,8 +120,7 @@ export type CabinetType =
   | 'sink_stove'
   | 'tall'
   | 'fridge'
-  | 'open_shelf'   // open base shelving (no doors)
-  | 'wine';        // wine rack (diagonal lattice)
+  | 'open_shelf';  // open base shelving (no doors)
 
 export type DoorStyle = 'flat' | 'shaker' | 'grooved' | 'glass' | 'slat' | 'profile';
 export type HandleType = 'bar' | 'knob' | 'inset';
@@ -690,7 +689,6 @@ export function cabinetLabel(type: CabinetType, lang: 'ru' | 'uz' = 'ru'): strin
     tall:       { ru: 'ПЕНАЛ',             uz: 'PENAL' },
     fridge:     { ru: 'ХОЛОДИЛЬНИК',       uz: 'MUZLATGICH' },
     open_shelf: { ru: 'ОТКРЫТЫЕ ПОЛКИ',    uz: 'OCHIQ TOKCHA' },
-    wine:       { ru: 'ВИНОТЕКА',          uz: 'VINO TOKCHA' },
   };
   return labels[type][lang];
 }
