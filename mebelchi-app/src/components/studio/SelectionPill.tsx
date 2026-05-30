@@ -46,6 +46,7 @@ export function SelectionPill() {
   const cabinetFaucet = useUI((s) => s.cabinetFaucet);
   const cabinetFaucetFinish = useUI((s) => s.cabinetFaucetFinish);
   const cabinetBurners = useUI((s) => s.cabinetBurners);
+  const drawerTypes = useUI((s) => s.drawerTypes);
   const upperMaterialMap = useUI((s) => s.upperMaterial);
   const upperHandleMap = useUI((s) => s.upperHandle);
 
@@ -61,6 +62,7 @@ export function SelectionPill() {
   const setFaucetFinish = useUI((s) => s.setCabinetFaucetFinish);
   const setBurners = useUI((s) => s.setCabinetBurners);
   const setDrawerCount = useUI((s) => s.setCabinetDrawerCount);
+  const setDrawerType = useUI((s) => s.setDrawerType);
 
   const t = useT();
   const insets = useSafeAreaInsets();
@@ -202,7 +204,7 @@ export function SelectionPill() {
         const hasDoor = !isDrawer && !hasSink && !hasStove && type !== 'fridge';
 
         return (
-          <View>
+          <ScrollView style={styles.controls} nestedScrollEnabled showsVerticalScrollIndicator={false}>
             {/* Colour swatches — per-cabinet override (horizontal scroll) */}
             <Text style={styles.chipLabel}>ЦВЕТ ФАСАДА</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -237,12 +239,23 @@ export function SelectionPill() {
             )}
 
             {isDrawer && (
-              <ChipRow
-                label="ЯЩИКИ"
-                options={[['drawer3', '3 ящика'], ['drawer4', '4 ящика']]}
-                value={type}
-                onPick={(v) => setDrawerCount(cab.id, v === 'drawer4' ? 4 : 3)}
-              />
+              <>
+                <ChipRow
+                  label="КОЛИЧЕСТВО ЯЩИКОВ"
+                  options={[['drawer3', '3 ящика'], ['drawer4', '4 ящика']]}
+                  value={type}
+                  onPick={(v) => setDrawerCount(cab.id, v === 'drawer4' ? 4 : 3)}
+                />
+                {Array.from({ length: type === 'drawer4' ? 4 : 3 }).map((_, i) => (
+                  <ChipRow
+                    key={i}
+                    label={`ЯЩИК ${i + 1}`}
+                    options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['organizer', 'Органайзер']]}
+                    value={drawerTypes[`${cab.id}#${i}`] ?? 'closed'}
+                    onPick={(v) => setDrawerType(cab.id, i, v as any)}
+                  />
+                ))}
+              </>
             )}
 
             {hasSink && (
@@ -285,7 +298,7 @@ export function SelectionPill() {
               </>
             )}
 
-          </View>
+          </ScrollView>
         );
       })()}
     </Animated.View>
@@ -371,6 +384,7 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.line, marginVertical: SPACE.md },
   hint: { ...TYPE.hint, color: COLORS.inkFaint, fontSize: 10, textAlign: 'center', marginTop: SPACE.xs },
 
+  controls: { maxHeight: 300 },
   chipBlock: { marginBottom: SPACE.sm },
   chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 4 },
   swatchRow: {

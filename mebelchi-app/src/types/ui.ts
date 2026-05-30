@@ -131,6 +131,8 @@ export type FaucetStyle = 'arch' | 'straight' | 'pull';
 export type FaucetFinish = 'chrome' | 'black' | 'gold';
 /** Cooktop burner/zone count. */
 export type BurnerCount = 2 | 4;
+/** Per-drawer presentation: closed front, pulled-open box, or open organizer. */
+export type DrawerKind = 'closed' | 'open' | 'organizer';
 
 export interface Cabinet {
   id: string;

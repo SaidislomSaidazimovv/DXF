@@ -672,6 +672,7 @@ export function Cabinet({
       {/* Realistic 3D drawer fronts (replaces the old divider lines) */}
       {isDrawer && !isXray && (
         <DrawerStack
+          cabId={cabinet.id}
           count={drawerCount}
           bodyW={bodyW}
           facadeColor={facadeColor}

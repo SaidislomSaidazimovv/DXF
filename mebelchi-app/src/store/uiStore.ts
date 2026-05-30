@@ -21,6 +21,7 @@ import type {
   CustomerConfirmation,
   BurnerCount,
   DoorStyle,
+  DrawerKind,
   FaucetFinish,
   FaucetStyle,
   HandleType,
@@ -125,6 +126,8 @@ export interface UIState {
   cabinetFaucet: Record<string, FaucetStyle>;
   cabinetFaucetFinish: Record<string, FaucetFinish>;
   cabinetBurners: Record<string, BurnerCount>;
+  /** Per-drawer presentation, keyed `${cabId}#${drawerIndex}`. */
+  drawerTypes: Record<string, DrawerKind>;
   /** Per-upper overrides (keyed by the base cabinet id beneath the upper). */
   upperMaterial: Record<string, MaterialId>;
   upperHandle: Record<string, HandleType>;
@@ -193,6 +196,7 @@ export interface UIState {
   setCabinetFaucetStyle: (cabId: string, v: FaucetStyle) => void;
   setCabinetFaucetFinish: (cabId: string, v: FaucetFinish) => void;
   setCabinetBurners: (cabId: string, v: BurnerCount) => void;
+  setDrawerType: (cabId: string, index: number, v: DrawerKind) => void;
   selectCabinet: (id: string | null) => void;
   selectUpper: (id: string | null) => void;
   /** Select a cabinet AND zoom to one of its fixtures. */
@@ -270,6 +274,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   cabinetFaucet: {},
   cabinetFaucetFinish: {},
   cabinetBurners: {},
+  drawerTypes: {},
   upperMaterial: {},
   upperHandle: {},
   auxMaterials: { ...DEFAULT_AUX },
@@ -320,6 +325,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetFaucet: {},
       cabinetFaucetFinish: {},
       cabinetBurners: {},
+      drawerTypes: {},
       upperMaterial: {},
       upperHandle: {},
       auxMaterials: { ...DEFAULT_AUX },
@@ -422,6 +428,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetFaucet: {},
       cabinetFaucetFinish: {},
       cabinetBurners: {},
+      drawerTypes: {},
       upperMaterial: {},
       upperHandle: {},
       cabinetHardware: {},
@@ -474,6 +481,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       cabinetFaucet: {},
       cabinetFaucetFinish: {},
       cabinetBurners: {},
+      drawerTypes: {},
       upperMaterial: {},
       upperHandle: {},
       cabinetHardware: {},
@@ -558,6 +566,8 @@ export const useUI = create<UIState>()(persist((set, get) => ({
     set((s) => ({ cabinetFaucetFinish: { ...s.cabinetFaucetFinish, [cabId]: v } })),
   setCabinetBurners: (cabId, v) =>
     set((s) => ({ cabinetBurners: { ...s.cabinetBurners, [cabId]: v } })),
+  setDrawerType: (cabId, index, v) =>
+    set((s) => ({ drawerTypes: { ...s.drawerTypes, [`${cabId}#${index}`]: v } })),
 
   cycleWorktop: () =>
     set((s) => {
