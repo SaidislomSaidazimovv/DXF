@@ -121,7 +121,7 @@ export type CabinetType =
   | 'tall'
   | 'fridge';
 
-export type DoorStyle = 'flat' | 'shaker' | 'grooved';
+export type DoorStyle = 'flat' | 'shaker' | 'grooved' | 'glass';
 export type HandleType = 'bar' | 'knob' | 'inset';
 export type SinkType = 'single' | 'double' | 'none';
 export type StoveType = 'induction' | 'gas' | 'none';

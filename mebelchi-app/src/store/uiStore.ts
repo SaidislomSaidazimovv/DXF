@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   AdvisorRuleId,
   AuxMaterials,
+  CabinetType,
   CeilingHeight,
   Constraint,
   CustomerConfirmation,
@@ -48,7 +49,7 @@ import { SAMPLE_PROJECTS, generateProjectId } from '@/mocks/projects';
 import { mockPrice } from '@/lib/pricing';
 
 // ── Cycle helpers ─────────────────────────────────────────────
-const DOOR_CYCLE: DoorStyle[] = ['flat', 'shaker', 'grooved'];
+const DOOR_CYCLE: DoorStyle[] = ['flat', 'shaker', 'grooved', 'glass'];
 const HANDLE_CYCLE: HandleType[] = ['bar', 'knob', 'inset'];
 const SINK_CYCLE: SinkType[] = ['single', 'double'];      // 'none' intentionally skipped
 const STOVE_CYCLE: StoveType[] = ['induction', 'gas'];     // 'none' intentionally skipped
@@ -207,6 +208,8 @@ export interface UIState {
   resizeCabinet: (cabId: string, deltaMm: number) => void;
   setCabinetDrawerCount: (cabId: string, count: 2 | 3 | 4) => void;
   cycleCabinetDrawerCount: (cabId: string) => void;
+  /** Convert a carcass cabinet between doors ('base') and drawers ('drawer3'). */
+  setCabinetType: (cabId: string, type: CabinetType) => void;
   setViewMode: (m: ViewMode) => void;
   setHeroMode: (v: boolean) => void;
   setAuxMaterial: <K extends keyof AuxMaterials>(kind: K, value: AuxMaterials[K]) => void;
@@ -659,6 +662,20 @@ export const useUI = create<UIState>()(persist((set, get) => ({
             ? { ...c, type: (c.type === 'drawer3' ? 'drawer4' : 'drawer3') }
             : c
         ),
+      };
+      return {
+        variants: s.variants.map((vv, vi) => (vi === s.variantIdx ? updated : vv)),
+      };
+    }),
+
+  /* Convert a carcass cabinet's type (doors ↔ drawers) from the pill. */
+  setCabinetType: (cabId, type) =>
+    set((s) => {
+      const v = s.variants[s.variantIdx];
+      if (!v) return s;
+      const updated: Variant = {
+        ...v,
+        cabinets: v.cabinets.map((c) => (c.id === cabId ? { ...c, type } : c)),
       };
       return {
         variants: s.variants.map((vv, vi) => (vi === s.variantIdx ? updated : vv)),

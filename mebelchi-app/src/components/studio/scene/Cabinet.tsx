@@ -191,31 +191,74 @@ function stopAnd(cb: () => void) {
 
 // ── Sub-renderers ─────────────────────────────────────────────
 
+/**
+ * ShakerFrame — a real routed shaker door: a recessed centre panel (set
+ * back from the door face) ringed by a darker shadow groove, so it reads
+ * as carpentry rather than a painted-on rectangle.
+ */
 function ShakerFrame({
-  bodyW, bodyHeight, bodyY, lineCol,
-}: { bodyW: number; bodyHeight: number; bodyY: number; lineCol: number }) {
-  const inset = 0.06;
-  const frameW = bodyW - inset * 2;
-  const frameH = bodyHeight - inset * 2;
-  const t = 0.008;
-  const mat = <meshStandardMaterial color={lineCol} transparent opacity={0.28} />;
+  bodyW, bodyHeight, bodyY, facadeColor, lineCol,
+}: { bodyW: number; bodyHeight: number; bodyY: number; facadeColor: number; lineCol: number }) {
+  const inset = 0.07;
+  const panelW = bodyW - inset * 2;
+  const panelH = bodyHeight - inset * 2;
+  const rim = 0.006;          // shadow groove thickness
+  const recessZ = FRONT - 0.006;
+  const shadow = <meshStandardMaterial color={lineCol} transparent opacity={0.4} />;
   return (
     <>
-      <mesh position={[0, bodyY + frameH / 2 - t / 2, FRONT + 0.001]}>
-        <boxGeometry args={[frameW, t, 0.002]} />
-        {mat}
+      {/* Recessed centre panel — slightly back, same facade colour */}
+      <mesh position={[0, bodyY, recessZ]}>
+        <boxGeometry args={[panelW, panelH, 0.004]} />
+        <meshStandardMaterial color={facadeColor} roughness={0.62} />
       </mesh>
-      <mesh position={[0, bodyY - frameH / 2 + t / 2, FRONT + 0.001]}>
-        <boxGeometry args={[frameW, t, 0.002]} />
-        {mat}
+      {/* Shadow groove around the recess (top/bottom/left/right) */}
+      <mesh position={[0, bodyY + panelH / 2 + rim / 2, FRONT - 0.002]}>
+        <boxGeometry args={[panelW + rim * 2, rim, 0.002]} />{shadow}
       </mesh>
-      <mesh position={[-frameW / 2 + t / 2, bodyY, FRONT + 0.001]}>
-        <boxGeometry args={[t, frameH, 0.002]} />
-        {mat}
+      <mesh position={[0, bodyY - panelH / 2 - rim / 2, FRONT - 0.002]}>
+        <boxGeometry args={[panelW + rim * 2, rim, 0.002]} />{shadow}
       </mesh>
-      <mesh position={[frameW / 2 - t / 2, bodyY, FRONT + 0.001]}>
-        <boxGeometry args={[t, frameH, 0.002]} />
-        {mat}
+      <mesh position={[-panelW / 2 - rim / 2, bodyY, FRONT - 0.002]}>
+        <boxGeometry args={[rim, panelH, 0.002]} />{shadow}
+      </mesh>
+      <mesh position={[panelW / 2 + rim / 2, bodyY, FRONT - 0.002]}>
+        <boxGeometry args={[rim, panelH, 0.002]} />{shadow}
+      </mesh>
+    </>
+  );
+}
+
+/**
+ * GlassDoor — aluminium frame with a dark tinted glass insert (oynali shkaf).
+ */
+function GlassDoor({
+  bodyW, bodyHeight, bodyY,
+}: { bodyW: number; bodyHeight: number; bodyY: number }) {
+  const inset = 0.05;
+  const glassW = bodyW - inset * 2;
+  const glassH = bodyHeight - inset * 2;
+  const fr = 0.014;           // aluminium frame width
+  const chrome = <meshStandardMaterial color={0xb9bec2} roughness={0.3} metalness={0.85} />;
+  return (
+    <>
+      {/* Tinted glass — translucent, slightly reflective */}
+      <mesh position={[0, bodyY, FRONT + 0.004]}>
+        <boxGeometry args={[glassW, glassH, 0.003]} />
+        <meshStandardMaterial color={0x20262b} transparent opacity={0.55} roughness={0.12} metalness={0.4} />
+      </mesh>
+      {/* Aluminium frame border */}
+      <mesh position={[0, bodyY + glassH / 2 + fr / 2, FRONT + 0.005]}>
+        <boxGeometry args={[glassW + fr * 2, fr, 0.006]} />{chrome}
+      </mesh>
+      <mesh position={[0, bodyY - glassH / 2 - fr / 2, FRONT + 0.005]}>
+        <boxGeometry args={[glassW + fr * 2, fr, 0.006]} />{chrome}
+      </mesh>
+      <mesh position={[-glassW / 2 - fr / 2, bodyY, FRONT + 0.005]}>
+        <boxGeometry args={[fr, glassH, 0.006]} />{chrome}
+      </mesh>
+      <mesh position={[glassW / 2 + fr / 2, bodyY, FRONT + 0.005]}>
+        <boxGeometry args={[fr, glassH, 0.006]} />{chrome}
       </mesh>
     </>
   );
@@ -693,10 +736,13 @@ export function Cabinet({
 
       {/* Door style overlay */}
       {hasDoor && doorStyle === 'shaker' && (
-        <ShakerFrame bodyW={bodyW} bodyHeight={bodyHeight} bodyY={bodyY} lineCol={lineCol} />
+        <ShakerFrame bodyW={bodyW} bodyHeight={bodyHeight} bodyY={bodyY} facadeColor={facadeColor} lineCol={lineCol} />
       )}
       {hasDoor && doorStyle === 'grooved' && (
         <Grooves bodyW={bodyW} bodyHeight={bodyHeight} bodyY={bodyY} lineCol={lineCol} />
+      )}
+      {hasDoor && doorStyle === 'glass' && (
+        <GlassDoor bodyW={bodyW} bodyHeight={bodyHeight} bodyY={bodyY} />
       )}
 
       {/* Handles — doors only (drawer handles live inside DrawerStack) */}

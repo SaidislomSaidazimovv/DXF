@@ -63,6 +63,7 @@ export function SelectionPill() {
   const setBurners = useUI((s) => s.setCabinetBurners);
   const setDrawerCount = useUI((s) => s.setCabinetDrawerCount);
   const setDrawerType = useUI((s) => s.setDrawerType);
+  const setCabinetType = useUI((s) => s.setCabinetType);
 
   const t = useT();
   const insets = useSafeAreaInsets();
@@ -221,11 +222,22 @@ export function SelectionPill() {
               </View>
             </ScrollView>
 
+            {/* Carcass cabinets (doors OR drawers) can switch type — this is
+                how the master reaches the drawer controls from any cabinet. */}
+            {(hasDoor || isDrawer) && (
+              <ChipRow
+                label="ТИП ШКАФА"
+                options={[['base', 'Двери'], ['drawer3', 'Ящики']]}
+                value={isDrawer ? 'drawer3' : 'base'}
+                onPick={(v) => setCabinetType(cab.id, v as any)}
+              />
+            )}
+
             {hasDoor && (
               <>
                 <ChipRow
-                  label="ДВЕРЬ"
-                  options={[['flat', 'Гладкая'], ['shaker', 'Шейкер'], ['grooved', 'Фрезеровка']]}
+                  label="ФАСАД"
+                  options={[['flat', 'Гладкая'], ['shaker', 'Шейкер'], ['grooved', 'Фрезеровка'], ['glass', 'Стекло']]}
                   value={cabinetDoorStyle[cab.id] ?? globalDoorStyle}
                   onPick={(v) => setDoorStyle(cab.id, v as any)}
                 />
