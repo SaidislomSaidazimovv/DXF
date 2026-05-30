@@ -53,3 +53,14 @@ export const PALETTE_MATERIALS = MATERIALS.filter((m) => !ADVISOR_ONLY.has(m.id)
 export function materialById(id: MaterialId): Material {
   return MATERIALS.find((m) => m.id === id) ?? MATERIALS[0];
 }
+
+/** Worktop (countertop) surface colours the master can pick. */
+export const WORKTOP_COLORS: { value: number; label: string }[] = [
+  { value: 0xdfd9c8, label: 'Светлая' },
+  { value: 0xe8e4da, label: 'Белый мрамор' },
+  { value: 0xc5b88f, label: 'Песок' },
+  { value: 0x5a4a32, label: 'Дерево' },
+  { value: 0x8e8a83, label: 'Серый камень' },
+  { value: 0x2c2c2a, label: 'Тёмная' },
+  { value: 0x1f1f1d, label: 'Чёрная' },
+];

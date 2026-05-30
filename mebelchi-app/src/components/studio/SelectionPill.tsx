@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUI, selectCurrentVariant } from '@/store/uiStore';
 import { cabinetLabel, INTERACTION } from '@/types/ui';
 import type { MaterialId } from '@/types/ui';
-import { PALETTE_MATERIALS } from '@/mocks/materials';
+import { PALETTE_MATERIALS, WORKTOP_COLORS } from '@/mocks/materials';
 import { MiniSwatch } from '@/components/shared/MiniSwatch';
 import { COLORS, RADII, SHADOWS, SPACE, TYPE } from '@/lib/tokens';
 import { useT } from '@/lib/i18n';
@@ -27,10 +27,14 @@ const BOTTOM_BAR_HEIGHT = 78;
 export function SelectionPill() {
   const selectedId = useUI((s) => s.selectedCabinetId);
   const selectedUpperId = useUI((s) => s.selectedUpperId);
+  const selectedWorktop = useUI((s) => s.selectedWorktop);
+  const worktopOverride = useUI((s) => s.worktopOverride);
   const variant = useUI(selectCurrentVariant);
   const lang = useUI((s) => s.language);
   const selectCabinet = useUI((s) => s.selectCabinet);
   const selectUpper = useUI((s) => s.selectUpper);
+  const selectWorktop = useUI((s) => s.selectWorktop);
+  const setWorktopColor = useUI((s) => s.setWorktopColor);
   const resizeCabinet = useUI((s) => s.resizeCabinet);
 
   /* Per-cabinet current values + global fallbacks */
@@ -75,7 +79,7 @@ export function SelectionPill() {
 
   const translateY = useRef(new Animated.Value(220)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const isOpen = !!selectedId || !!selectedUpperId;
+  const isOpen = !!selectedId || !!selectedUpperId || selectedWorktop;
 
   useEffect(() => {
     Animated.parallel([
@@ -92,6 +96,49 @@ export function SelectionPill() {
       }),
     ]).start();
   }, [isOpen, translateY, opacity]);
+
+  /* Worktop variant — name + close + colour swatches. */
+  if (selectedWorktop) {
+    return (
+      <Animated.View
+        pointerEvents="auto"
+        style={[styles.root, { bottom: bottomOffset, transform: [{ translateY }], opacity }]}
+      >
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.name}>СТОЛЕШНИЦА</Text>
+          </View>
+          <Pressable
+            onPress={() => { hapticTap(); selectWorktop(false); }}
+            hitSlop={12}
+            style={({ pressed }) => [styles.close, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.closeTxt}>×</Text>
+          </Pressable>
+        </View>
+        <View style={styles.divider} />
+        <Text style={styles.chipLabel}>ЦВЕТ СТОЛЕШНИЦЫ</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.swatchRow}>
+            {WORKTOP_COLORS.map((c) => {
+              const active = (worktopOverride ?? -1) === c.value;
+              return (
+                <Pressable
+                  key={c.value}
+                  onPress={() => { hapticSwatch(); setWorktopColor(c.value); }}
+                  style={[
+                    styles.worktopSwatch,
+                    { backgroundColor: '#' + c.value.toString(16).padStart(6, '0') },
+                    active && styles.worktopSwatchActive,
+                  ]}
+                />
+              );
+            })}
+          </View>
+        </ScrollView>
+      </Animated.View>
+    );
+  }
 
   /* Upper (wall cabinet) variant — simpler pill: name + close + hint. */
   if (selectedUpperId) {
@@ -413,6 +460,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACE.sm,
     paddingRight: SPACE.sm,
   },
+  worktopSwatch: {
+    width: 40,
+    height: 34,
+    borderRadius: RADII.sm,
+    borderWidth: 1,
+    borderColor: COLORS.line,
+  },
+  worktopSwatchActive: { borderWidth: 2, borderColor: COLORS.ink },
   chipRow: { flexDirection: 'row', gap: SPACE.xs, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: SPACE.md,

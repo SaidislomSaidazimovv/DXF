@@ -49,19 +49,6 @@ import { generateVariants } from '@/mocks/variants';
 import { SAMPLE_PROJECTS, generateProjectId } from '@/mocks/projects';
 import { mockPrice } from '@/lib/pricing';
 
-// ── Cycle helpers ─────────────────────────────────────────────
-const DOOR_CYCLE: DoorStyle[] = ['flat', 'shaker', 'grooved', 'glass'];
-const HANDLE_CYCLE: HandleType[] = ['bar', 'knob', 'inset'];
-const SINK_CYCLE: SinkType[] = ['single', 'double'];      // 'none' intentionally skipped
-const STOVE_CYCLE: StoveType[] = ['induction', 'gas'];     // 'none' intentionally skipped
-const FAUCET_CYCLE: FaucetStyle[] = ['arch', 'straight', 'pull'];
-const WORKTOP_CYCLE: number[] = [0xdfd9c8, 0x2c2c2a, 0x1f1f1d, 0x5a4a32, 0xc5b88f];
-
-function nextInCycle<T>(arr: T[], current: T): T {
-  const i = arr.indexOf(current);
-  return arr[(i + 1) % arr.length];
-}
-
 // ── Defaults ──────────────────────────────────────────────────
 const DEFAULT_WALL = 1500;
 const DEFAULT_CEILING: CeilingHeight = 2600;
@@ -156,6 +143,8 @@ export interface UIState {
   selectedUpperId: string | null;
   /** Which fixture of the selected cabinet the camera is zoomed onto. */
   selectedDetail: 'faucet' | 'stove' | 'sink' | null;
+  /** Worktop (countertop) is the focused element. */
+  selectedWorktop: boolean;
   viewMode: ViewMode;
   heroMode: boolean;
 
@@ -185,12 +174,8 @@ export interface UIState {
   /** Context-aware material setter: targets the selected upper, else the
       selected cabinet, else the global material. Used by the material drawer. */
   setMaterialForSelection: (m: MaterialId) => void;
-  cycleDoorStyle: (cabId: string) => void;
-  cycleHandle: (cabId: string) => void;
-  cycleSink: (cabId: string) => void;
-  cycleStove: (cabId: string) => void;
-  cycleFaucet: (cabId: string) => void;
-  cycleWorktop: () => void;
+  selectWorktop: (v: boolean) => void;
+  setWorktopColor: (color: number) => void;
   /* Direct setters — used by the explicit chip controls in the selection pill. */
   setCabinetDoorStyle: (cabId: string, v: DoorStyle) => void;
   setCabinetHandle: (cabId: string, v: HandleType) => void;
@@ -205,12 +190,10 @@ export interface UIState {
   /** Select a cabinet AND zoom to one of its fixtures. */
   focusDetail: (cabId: string, detail: 'faucet' | 'stove' | 'sink') => void;
   setUpperMaterial: (cabId: string, m: MaterialId) => void;
-  cycleUpperHandle: (cabId: string) => void;
   setUpperHandle: (cabId: string, v: HandleType) => void;
   setUpperType: (cabId: string, v: UpperKind) => void;
   resizeCabinet: (cabId: string, deltaMm: number) => void;
   setCabinetDrawerCount: (cabId: string, count: 2 | 3 | 4) => void;
-  cycleCabinetDrawerCount: (cabId: string) => void;
   /** Convert a carcass cabinet between doors ('base') and drawers ('drawer3'). */
   setCabinetType: (cabId: string, type: CabinetType) => void;
   setViewMode: (m: ViewMode) => void;
@@ -303,6 +286,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   selectedCabinetId: null,
   selectedUpperId: null,
   selectedDetail: null,
+  selectedWorktop: false,
   viewMode: '3d',
   heroMode: false,
 
@@ -346,6 +330,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       selectedCabinetId: null,
       selectedUpperId: null,
       selectedDetail: null,
+      selectedWorktop: false,
       viewMode: '3d',
       heroMode: false,
     });
@@ -445,6 +430,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       selectedCabinetId: null,
       selectedUpperId: null,
       selectedDetail: null,
+      selectedWorktop: false,
     });
   },
 
@@ -499,6 +485,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       selectedCabinetId: null,
       selectedUpperId: null,
       selectedDetail: null,
+      selectedWorktop: false,
     });
   },
 
@@ -528,39 +515,6 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       return { globalMaterial: m };
     }),
 
-  cycleDoorStyle: (cabId) =>
-    set((s) => {
-      const current = s.cabinetDoorStyle[cabId] ?? s.globalDoorStyle;
-      return {
-        cabinetDoorStyle: { ...s.cabinetDoorStyle, [cabId]: nextInCycle(DOOR_CYCLE, current) },
-      };
-    }),
-
-  cycleHandle: (cabId) =>
-    set((s) => {
-      const current = s.cabinetHandle[cabId] ?? 'bar';
-      return {
-        cabinetHandle: { ...s.cabinetHandle, [cabId]: nextInCycle(HANDLE_CYCLE, current) },
-      };
-    }),
-
-  /* Per-cabinet fixture cycles — each sink/stove/faucet is independent. */
-  cycleSink: (cabId) =>
-    set((s) => {
-      const cur = s.cabinetSink[cabId] ?? s.sinkType;
-      return { cabinetSink: { ...s.cabinetSink, [cabId]: nextInCycle(SINK_CYCLE, cur) } };
-    }),
-  cycleStove: (cabId) =>
-    set((s) => {
-      const cur = s.cabinetStove[cabId] ?? s.stoveType;
-      return { cabinetStove: { ...s.cabinetStove, [cabId]: nextInCycle(STOVE_CYCLE, cur) } };
-    }),
-  cycleFaucet: (cabId) =>
-    set((s) => {
-      const cur = s.cabinetFaucet[cabId] ?? 'arch';
-      return { cabinetFaucet: { ...s.cabinetFaucet, [cabId]: nextInCycle(FAUCET_CYCLE, cur) } };
-    }),
-
   /* Direct per-cabinet setters (explicit chip controls) */
   setCabinetDoorStyle: (cabId, v) =>
     set((s) => ({ cabinetDoorStyle: { ...s.cabinetDoorStyle, [cabId]: v } })),
@@ -579,40 +533,34 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   setDrawerType: (cabId, index, v) =>
     set((s) => ({ drawerTypes: { ...s.drawerTypes, [`${cabId}#${index}`]: v } })),
 
-  cycleWorktop: () =>
-    set((s) => {
-      const current = s.worktopOverride ?? WORKTOP_CYCLE[0];
-      const i = WORKTOP_CYCLE.indexOf(current);
-      return { worktopOverride: WORKTOP_CYCLE[(i + 1) % WORKTOP_CYCLE.length] };
-    }),
-
   selectCabinet: (id) => {
     /* During the "show customer" ceremony (heroMode turntable), nothing is
        selectable — a stray tap shouldn't highlight anything. Deselecting
        (id === null) is always allowed. Selecting a cabinet clears any
-       upper selection (focus is mutually exclusive). */
+       upper/worktop selection (focus is mutually exclusive). */
     if (id !== null && get().heroMode) return;
-    set({ selectedCabinetId: id, selectedUpperId: null, selectedDetail: null });
+    set({ selectedCabinetId: id, selectedUpperId: null, selectedDetail: null, selectedWorktop: false });
   },
 
   selectUpper: (id) => {
     if (id !== null && get().heroMode) return;
-    set({ selectedUpperId: id, selectedCabinetId: null, selectedDetail: null });
+    set({ selectedUpperId: id, selectedCabinetId: null, selectedDetail: null, selectedWorktop: false });
   },
 
   focusDetail: (cabId, detail) => {
     if (get().heroMode) return;
-    set({ selectedCabinetId: cabId, selectedUpperId: null, selectedDetail: detail });
+    set({ selectedCabinetId: cabId, selectedUpperId: null, selectedDetail: detail, selectedWorktop: false });
   },
+
+  selectWorktop: (v) => {
+    if (v && get().heroMode) return;
+    set({ selectedWorktop: v, selectedCabinetId: null, selectedUpperId: null, selectedDetail: null });
+  },
+
+  setWorktopColor: (color) => set({ worktopOverride: color }),
 
   setUpperMaterial: (cabId, m) =>
     set((s) => ({ upperMaterial: { ...s.upperMaterial, [cabId]: m } })),
-
-  cycleUpperHandle: (cabId) =>
-    set((s) => {
-      const cur = s.upperHandle[cabId] ?? 'bar';
-      return { upperHandle: { ...s.upperHandle, [cabId]: nextInCycle(HANDLE_CYCLE, cur) } };
-    }),
 
   setUpperHandle: (cabId, v) =>
     set((s) => ({ upperHandle: { ...s.upperHandle, [cabId]: v } })),
@@ -652,24 +600,6 @@ export const useUI = create<UIState>()(persist((set, get) => ({
         cabinets: v.cabinets.map((c) =>
           c.id === cabId
             ? { ...c, type: newType as Variant['cabinets'][number]['type'] }
-            : c
-        ),
-      };
-      return {
-        variants: s.variants.map((vv, vi) => (vi === s.variantIdx ? updated : vv)),
-      };
-    }),
-
-  /* Tap-to-cycle on a drawer cabinet: 3 ящика ⇄ 4 ящика. */
-  cycleCabinetDrawerCount: (cabId) =>
-    set((s) => {
-      const v = s.variants[s.variantIdx];
-      if (!v) return s;
-      const updated: Variant = {
-        ...v,
-        cabinets: v.cabinets.map((c) =>
-          c.id === cabId && (c.type === 'drawer3' || c.type === 'drawer4')
-            ? { ...c, type: (c.type === 'drawer3' ? 'drawer4' : 'drawer3') }
             : c
         ),
       };

@@ -38,7 +38,8 @@ export function Kitchen() {
   const selectCabinet = useUI((s) => s.selectCabinet);
   const selectUpper = useUI((s) => s.selectUpper);
   const focusDetail = useUI((s) => s.focusDetail);
-  const cycleWorktop = useUI((s) => s.cycleWorktop);
+  const selectWorktop = useUI((s) => s.selectWorktop);
+  const selectedWorktop = useUI((s) => s.selectedWorktop);
 
   const mat = materialById(globalMat);
 
@@ -108,7 +109,8 @@ export function Kitchen() {
             centerZ={layout.placed[0].groupPosition[2]}
             color={mat.top}
             override={worktopOverride}
-            onPress={() => { hapticTap(); cycleWorktop(); }}
+            isSelected={selectedWorktop}
+            onPress={() => { hapticTap(); selectWorktop(true); }}
           />
         );
       })}

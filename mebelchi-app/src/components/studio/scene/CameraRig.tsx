@@ -55,6 +55,7 @@ export function CameraRig() {
   const selectedId = useUI((s) => s.selectedCabinetId);
   const selectedUpperId = useUI((s) => s.selectedUpperId);
   const selectedDetail = useUI((s) => s.selectedDetail);
+  const selectedWorktop = useUI((s) => s.selectedWorktop);
   const variant = useUI(selectCurrentVariant);
   const viewMode = useUI((s) => s.viewMode);
   const wallMm = useUI((s) => s.wallLengthMm);
@@ -105,6 +106,13 @@ export function CameraRig() {
          workshop-overview perspective. */
       camera.up.set(0, 1, 0);
       target = XRAY_TARGET;
+    } else if (selectedWorktop) {
+      /* Whole worktop run — frame the counter surface, centred on the wall. */
+      camera.up.set(0, 1, 0);
+      const worktopY =
+        GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS;
+      const cz = variant ? (findPlaced(variant, variant.cabinets[0]?.id)?.groupPosition[2] ?? 0) : 0;
+      target = frameTarget(0, worktopY + 0.1, cz, 3.3, 0.5);
     } else if (selectedUpperId) {
       /* Wall (upper) cabinet — framed high, fully visible above the pill. */
       camera.up.set(0, 1, 0);
@@ -161,7 +169,7 @@ export function CameraRig() {
     startTime.current = performance.now();
     duration.current = target.duration;
     tweening.current = true;
-  }, [selectedId, selectedUpperId, selectedDetail, viewMode, variant, wallMm, heroMode, camera]);
+  }, [selectedId, selectedUpperId, selectedDetail, selectedWorktop, viewMode, variant, wallMm, heroMode, camera]);
 
   /* Per-frame lerp + hero turntable */
   useFrame(() => {
