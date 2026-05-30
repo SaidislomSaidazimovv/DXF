@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.line, marginVertical: SPACE.md },
   hint: { ...TYPE.hint, color: COLORS.inkFaint, fontSize: 10, textAlign: 'center', marginTop: SPACE.xs },
 
-  controls: { maxHeight: 300 },
+  controls: { maxHeight: 210 },
   chipBlock: { marginBottom: SPACE.sm },
   chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 4 },
   swatchRow: {

@@ -39,11 +39,13 @@ function frameTarget(
   upBias: number,
   lookZ?: number,
 ): CameraTarget {
-  const side = cx >= 0 ? 0.3 : -0.3;
+  const side = cx >= 0 ? 0.32 : -0.32;
   return {
-    position: [cx * 0.5 + side, cy + 0.7, cz + dist],
+    /* Camera higher + aimed well BELOW the element pushes it into the top
+       band of the screen, clear of the (tall) selection pill. */
+    position: [cx * 0.5 + side, cy + 0.95, cz + dist],
     lookAt: [cx, cy - upBias, lookZ ?? cz],
-    fov: 40,
+    fov: 38,
     duration: 480,
   };
 }
@@ -113,8 +115,8 @@ export function CameraRig() {
             placed.groupPosition[0],
             upperY,
             placed.groupPosition[2] - GEOMETRY.CABINET_DEPTH / 2,
-            2.5 + placed.cab.width * 0.5,
-            0.42,
+            3.0 + placed.cab.width * 0.4,
+            0.62,
           )
         : OVERVIEW_TARGET;
     } else if (selectedDetail && selectedId) {
@@ -128,7 +130,7 @@ export function CameraRig() {
         const detailY = selectedDetail === 'faucet' ? worktopY + 0.18 : worktopY + 0.06;
         const detailZ =
           placed.groupPosition[2] - (selectedDetail === 'faucet' ? GEOMETRY.CABINET_DEPTH * 0.18 : 0);
-        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 1.95, 0.28, detailZ);
+        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 2.35, 0.42, detailZ);
       } else {
         target = OVERVIEW_TARGET;
       }
@@ -139,10 +141,10 @@ export function CameraRig() {
       target = placed
         ? frameTarget(
             placed.groupPosition[0],
-            placed.bodyCenterY + 0.18,
+            placed.bodyCenterY + 0.25,
             placed.groupPosition[2],
-            2.7 + placed.cab.width * 0.5,
-            0.32,
+            3.1 + placed.cab.width * 0.4,
+            0.6,
           )
         : OVERVIEW_TARGET;
     } else {
