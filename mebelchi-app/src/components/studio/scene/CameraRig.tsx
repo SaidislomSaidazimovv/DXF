@@ -24,28 +24,32 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+const FOV = 38;
+
 /**
- * Frame a focused element so it sits in the UPPER portion of the screen —
- * the selection pill covers the bottom ~half, so we:
- *   • pull the camera back enough to show the whole element + margin
- *   • aim the lookAt BELOW the element (upBias) so it rides high, clearing
- *     the pill, and the master can see exactly what's being changed.
+ * Frame a focused element so its TRUE centre (centerY) lands ~20% from the
+ * top of the screen — fully clear of the selection pill that covers the
+ * bottom ~half. Principled, not guessed:
+ *   • lookAt is set BELOW the element by dist·tan(~11°) ≈ dist·0.20, which
+ *     places the element centre at +11° above the optical axis ≈ 20% down
+ *     from the top edge (fov 38°).
+ *   • camera height ∝ dist gives a gentle downward pitch.
+ * Caller passes the element's REAL centre and a distance big enough that the
+ * element's full height fits in the top band (≥ ~3.4 for a base cabinet).
  */
 function frameTarget(
   cx: number,
-  cy: number,
+  centerY: number,
   cz: number,
   dist: number,
-  upBias: number,
   lookZ?: number,
 ): CameraTarget {
   const side = cx >= 0 ? 0.32 : -0.32;
+  const lookBelow = dist * 0.20;   // → element centre ~20% from top
   return {
-    /* Camera higher + aimed well BELOW the element pushes it into the top
-       band of the screen, clear of the (tall) selection pill. */
-    position: [cx * 0.5 + side, cy + 0.95, cz + dist],
-    lookAt: [cx, cy - upBias, lookZ ?? cz],
-    fov: 38,
+    position: [cx * 0.5 + side, centerY + dist * 0.30, cz + dist],
+    lookAt: [cx, centerY - lookBelow, lookZ ?? cz],
+    fov: FOV,
     duration: 480,
   };
 }
@@ -112,9 +116,9 @@ export function CameraRig() {
       const worktopY =
         GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS;
       const cz = variant ? (findPlaced(variant, variant.cabinets[0]?.id)?.groupPosition[2] ?? 0) : 0;
-      target = frameTarget(0, worktopY + 0.1, cz, 3.3, 0.5);
+      target = frameTarget(0, worktopY, cz, 3.6);
     } else if (selectedUpperId) {
-      /* Wall (upper) cabinet — framed high, fully visible above the pill. */
+      /* Wall (upper) cabinet — true centre = upper mid-height. */
       camera.up.set(0, 1, 0);
       const placed = findPlaced(variant, selectedUpperId);
       const upperY = GEOMETRY.UPPER_Y_OFFSET + GEOMETRY.UPPER_HEIGHT / 2;
@@ -123,36 +127,37 @@ export function CameraRig() {
             placed.groupPosition[0],
             upperY,
             placed.groupPosition[2] - GEOMETRY.CABINET_DEPTH / 2,
-            3.0 + placed.cab.width * 0.4,
-            0.62,
+            2.9 + placed.cab.width * 0.4,
           )
         : OVERVIEW_TARGET;
     } else if (selectedDetail && selectedId) {
-      /* A specific fixture (faucet / stove / sink) on the worktop. Closer than
-         a cabinet but still pulled back enough to show the whole fixture. */
+      /* A fixture (faucet / stove / sink) on the worktop — small element, so
+         a closer distance still fits it fully in the top band. */
       camera.up.set(0, 1, 0);
       const placed = findPlaced(variant, selectedId);
       if (placed) {
         const worktopY =
           GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS;
-        const detailY = selectedDetail === 'faucet' ? worktopY + 0.18 : worktopY + 0.06;
+        const detailY = selectedDetail === 'faucet' ? worktopY + 0.14 : worktopY + 0.04;
         const detailZ =
           placed.groupPosition[2] - (selectedDetail === 'faucet' ? GEOMETRY.CABINET_DEPTH * 0.18 : 0);
-        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 2.7, 0.55, detailZ);
+        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 2.9, detailZ);
       } else {
         target = OVERVIEW_TARGET;
       }
     } else if (selectedId) {
-      /* Whole base cabinet — full height visible above the pill. */
+      /* Whole base cabinet — true centre between worktop top and plinth. */
       camera.up.set(0, 1, 0);
       const placed = findPlaced(variant, selectedId);
+      /* Mid-point from floor to worktop top — the visible base cabinet centre. */
+      const baseCenterY =
+        (GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS) / 2;
       target = placed
         ? frameTarget(
             placed.groupPosition[0],
-            placed.bodyCenterY + 0.3,
+            baseCenterY,
             placed.groupPosition[2],
-            3.4 + placed.cab.width * 0.4,
-            0.8,
+            3.7 + placed.cab.width * 0.4,
           )
         : OVERVIEW_TARGET;
     } else {
