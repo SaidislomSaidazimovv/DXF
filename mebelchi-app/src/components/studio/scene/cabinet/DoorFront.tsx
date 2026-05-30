@@ -114,6 +114,41 @@ function Door({
         );
       })()}
 
+      {/* ── Slat: vertical recessed grooves ── */}
+      {style === 'slat' && [-0.3, -0.1, 0.1, 0.3].map((fx, k) => (
+        <mesh key={k} position={[w * fx, yc, frontZ - 0.004]}>
+          <boxGeometry args={[0.01, h - 0.06, 0.004]} />
+          <meshStandardMaterial color={SHADOW} roughness={0.85} />
+        </mesh>
+      ))}
+
+      {/* ── Profile: double-framed routed panel (deeper than shaker) ── */}
+      {style === 'profile' && (() => {
+        const rim = 0.006;
+        const insets = [0.05, 0.085];   // two concentric frames
+        return (
+          <group>
+            <mesh position={[0, yc, frontZ - 0.008]}>
+              <boxGeometry args={[w - insets[1] * 2, h - insets[1] * 2, 0.004]} />
+              <meshStandardMaterial color={facadeColor} roughness={0.58} />
+            </mesh>
+            {insets.map((ins, fi) => {
+              const pw = w - ins * 2;
+              const ph = h - ins * 2;
+              const sh = <meshStandardMaterial color={lineCol} transparent opacity={fi === 0 ? 0.35 : 0.5} />;
+              return (
+                <group key={fi}>
+                  <mesh position={[0, yc + ph / 2, frontZ - 0.002]}><boxGeometry args={[pw + rim, rim * 0.7, 0.002]} />{sh}</mesh>
+                  <mesh position={[0, yc - ph / 2, frontZ - 0.002]}><boxGeometry args={[pw + rim, rim * 0.7, 0.002]} />{sh}</mesh>
+                  <mesh position={[-pw / 2, yc, frontZ - 0.002]}><boxGeometry args={[rim * 0.7, ph, 0.002]} />{sh}</mesh>
+                  <mesh position={[pw / 2, yc, frontZ - 0.002]}><boxGeometry args={[rim * 0.7, ph, 0.002]} />{sh}</mesh>
+                </group>
+              );
+            })}
+          </group>
+        );
+      })()}
+
       {/* Handle — near the inner-top corner (vertical bar reads like a real pull) */}
       <Handle
         type={handle}

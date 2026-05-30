@@ -43,8 +43,10 @@ export function Stove({ xOffset, width, worktopTopY, stoveType, burners = 4, onP
 
   const burnerR = Math.min(0.075, slabW * 0.18);
 
-  /* Burner offsets — 4 zones in a 2×2, or 2 zones centred front-to-back. */
-  const offsets: [number, number][] = burners === 2
+  /* Burner offsets — 1 (domino centre), 2 (front-to-back), or 4 (2×2). */
+  const offsets: [number, number][] = burners === 1
+    ? [[0, 0]]
+    : burners === 2
     ? [
         [0, -slabD * 0.20],   // back-centre
         [0, +slabD * 0.20],   // front-centre
@@ -59,19 +61,28 @@ export function Stove({ xOffset, width, worktopTopY, stoveType, burners = 4, onP
   /* Knob/touch positions on the front edge — one per burner. */
   const knobZ = slabZ + slabD / 2 - 0.045;
   const knobY = slabY + slabH / 2 + 0.005;
-  const knobXs = burners === 2
+  const knobXs = burners === 1
+    ? [0]
+    : burners === 2
     ? [-slabW * 0.12, +slabW * 0.12]
     : [-slabW * 0.36, -slabW * 0.12, +slabW * 0.12, +slabW * 0.36];
 
+  /* Surface colour: black glass for induction & gas-on-glass; brushed steel
+     for traditional gas. */
+  const isGlassSurface = stoveType === 'induction' || stoveType === 'gas_glass';
+  const slabColor = isGlassSurface ? GLASS_COLOR : 0x9a9a96;
+  /* Both gas variants render cups + grates. */
+  const isGas = stoveType === 'gas' || stoveType === 'gas_glass';
+
   return (
     <group position={[xOffset, 0, 0]}>
-      {/* Glass slab — click target */}
+      {/* Cooktop slab — click target */}
       <mesh
         position={[0, slabY, slabZ]}
         onClick={onPress ? (e) => { e.stopPropagation(); onPress(); } : undefined}
       >
         <boxGeometry args={[slabW, slabH, slabD]} />
-        <meshStandardMaterial color={GLASS_COLOR} roughness={0.18} metalness={0.55} />
+        <meshStandardMaterial color={slabColor} roughness={isGlassSurface ? 0.18 : 0.4} metalness={isGlassSurface ? 0.55 : 0.7} />
       </mesh>
 
       {/* Chrome trim — thin frame around the slab edge */}
@@ -123,7 +134,7 @@ export function Stove({ xOffset, width, worktopTopY, stoveType, burners = 4, onP
         </>
       )}
 
-      {stoveType === 'gas' && (
+      {isGas && (
         <>
           {offsets.map(([dx, dz], i) => {
             const baseY = slabY + slabH / 2 + 0.001;

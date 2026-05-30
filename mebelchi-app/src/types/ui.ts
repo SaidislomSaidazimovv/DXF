@@ -119,22 +119,24 @@ export type CabinetType =
   | 'stove'
   | 'sink_stove'
   | 'tall'
-  | 'fridge';
+  | 'fridge'
+  | 'open_shelf'   // open base shelving (no doors)
+  | 'wine';        // wine rack (diagonal lattice)
 
-export type DoorStyle = 'flat' | 'shaker' | 'grooved' | 'glass';
+export type DoorStyle = 'flat' | 'shaker' | 'grooved' | 'glass' | 'slat' | 'profile';
 export type HandleType = 'bar' | 'knob' | 'inset';
-export type SinkType = 'single' | 'double' | 'none';
-export type StoveType = 'induction' | 'gas' | 'none';
+export type SinkType = 'single' | 'double' | 'one_half' | 'drainboard' | 'none';
+export type StoveType = 'induction' | 'gas' | 'gas_glass' | 'none';
 /** Faucet (kran) silhouette — a per-sink detail the master can swap. */
-export type FaucetStyle = 'arch' | 'straight' | 'pull';
+export type FaucetStyle = 'arch' | 'straight' | 'pull' | 'twin' | 'spring';
 /** Faucet finish (metal colour). */
 export type FaucetFinish = 'chrome' | 'black' | 'gold';
-/** Cooktop burner/zone count. */
-export type BurnerCount = 2 | 4;
-/** Per-drawer presentation: closed front, pulled-open box, or open organizer. */
-export type DrawerKind = 'closed' | 'open' | 'organizer';
-/** Upper (wall) cabinet presentation: closed door, open shelves, or glass door. */
-export type UpperKind = 'closed' | 'open' | 'glass';
+/** Cooktop burner/zone count (1 = domino). */
+export type BurnerCount = 1 | 2 | 4;
+/** Per-drawer presentation. */
+export type DrawerKind = 'closed' | 'open' | 'organizer' | 'glass' | 'mesh';
+/** Upper (wall) cabinet presentation. */
+export type UpperKind = 'closed' | 'open' | 'glass' | 'lift' | 'rail';
 
 export interface Cabinet {
   id: string;
@@ -687,6 +689,8 @@ export function cabinetLabel(type: CabinetType, lang: 'ru' | 'uz' = 'ru'): strin
     sink_stove: { ru: 'МОЙКА + ВАРОЧНАЯ',  uz: 'MOYKA + PLITA' },
     tall:       { ru: 'ПЕНАЛ',             uz: 'PENAL' },
     fridge:     { ru: 'ХОЛОДИЛЬНИК',       uz: 'MUZLATGICH' },
+    open_shelf: { ru: 'ОТКРЫТЫЕ ПОЛКИ',    uz: 'OCHIQ TOKCHA' },
+    wine:       { ru: 'ВИНОТЕКА',          uz: 'VINO TOKCHA' },
   };
   return labels[type][lang];
 }

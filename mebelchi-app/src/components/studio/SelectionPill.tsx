@@ -42,6 +42,9 @@ export function SelectionPill() {
   const globalDoorStyle = useUI((s) => s.globalDoorStyle);
   const sinkTypeDefault = useUI((s) => s.sinkType);
   const stoveTypeDefault = useUI((s) => s.stoveType);
+  const globalHandle = useUI((s) => s.globalHandle);
+  const globalFaucetStyle = useUI((s) => s.globalFaucetStyle);
+  const globalFaucetFinish = useUI((s) => s.globalFaucetFinish);
   const cabinetMaterial = useUI((s) => s.cabinetMaterial);
   const cabinetDoorStyle = useUI((s) => s.cabinetDoorStyle);
   const cabinetHandle = useUI((s) => s.cabinetHandle);
@@ -179,7 +182,7 @@ export function SelectionPill() {
 
         <ChipRow
           label="ТИП"
-          options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['glass', 'Стекло']]}
+          options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['glass', 'Стекло'], ['lift', 'Подъёмный'], ['rail', 'Рейлинг']]}
           value={upperTypeMap[selectedUpperId] ?? 'closed'}
           onPick={(v) => setUpperType(selectedUpperId, v as any)}
         />
@@ -255,9 +258,11 @@ export function SelectionPill() {
       {(() => {
         const type = cab.type;
         const isDrawer = type === 'drawer3' || type === 'drawer4';
+        const isShelf = type === 'open_shelf' || type === 'wine';
         const hasSink = type === 'sink' || type === 'sink_stove';
         const hasStove = type === 'stove' || type === 'sink_stove';
-        const hasDoor = !isDrawer && !hasSink && !hasStove && type !== 'fridge';
+        const hasDoor = !isDrawer && !isShelf && !hasSink && !hasStove && type !== 'fridge';
+        const carcassType = isDrawer ? 'drawer3' : type === 'open_shelf' ? 'open_shelf' : type === 'wine' ? 'wine' : 'base';
 
         return (
           <ScrollView style={styles.controls} nestedScrollEnabled showsVerticalScrollIndicator={false}>
@@ -279,11 +284,11 @@ export function SelectionPill() {
 
             {/* Carcass cabinets (doors OR drawers) can switch type — this is
                 how the master reaches the drawer controls from any cabinet. */}
-            {(hasDoor || isDrawer) && (
+            {(hasDoor || isDrawer || isShelf) && (
               <ChipRow
                 label="ТИП ШКАФА"
-                options={[['base', 'Двери'], ['drawer3', 'Ящики']]}
-                value={isDrawer ? 'drawer3' : 'base'}
+                options={[['base', 'Двери'], ['drawer3', 'Ящики'], ['open_shelf', 'Полки'], ['wine', 'Винотека']]}
+                value={carcassType}
                 onPick={(v) => setCabinetType(cab.id, v as any)}
               />
             )}
@@ -292,14 +297,14 @@ export function SelectionPill() {
               <>
                 <ChipRow
                   label="ФАСАД"
-                  options={[['flat', 'Гладкая'], ['shaker', 'Шейкер'], ['grooved', 'Фрезеровка'], ['glass', 'Стекло']]}
+                  options={[['flat', 'Гладкая'], ['shaker', 'Шейкер'], ['grooved', 'Фрезеровка'], ['glass', 'Стекло'], ['slat', 'Рейки'], ['profile', 'Профиль']]}
                   value={cabinetDoorStyle[cab.id] ?? globalDoorStyle}
                   onPick={(v) => setDoorStyle(cab.id, v as any)}
                 />
                 <ChipRow
                   label="РУЧКА"
                   options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}
-                  value={cabinetHandle[cab.id] ?? 'bar'}
+                  value={cabinetHandle[cab.id] ?? globalHandle}
                   onPick={(v) => setHandle(cab.id, v as any)}
                 />
               </>
@@ -317,7 +322,7 @@ export function SelectionPill() {
                   <ChipRow
                     key={i}
                     label={`ЯЩИК ${i + 1}`}
-                    options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['organizer', 'Органайзер']]}
+                    options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['organizer', 'Органайзер'], ['glass', 'Стекло'], ['mesh', 'Сетка']]}
                     value={drawerTypes[`${cab.id}#${i}`] ?? 'closed'}
                     onPick={(v) => setDrawerType(cab.id, i, v as any)}
                   />
@@ -329,20 +334,20 @@ export function SelectionPill() {
               <>
                 <ChipRow
                   label="МОЙКА"
-                  options={[['single', 'Одинарная'], ['double', 'Двойная']]}
+                  options={[['single', 'Одинарная'], ['double', 'Двойная'], ['one_half', 'Полуторная'], ['drainboard', 'С крылом']]}
                   value={cabinetSink[cab.id] ?? sinkTypeDefault}
                   onPick={(v) => setSink(cab.id, v as any)}
                 />
                 <ChipRow
                   label="КРАН · форма"
-                  options={[['arch', 'Дуга'], ['straight', 'Прямой'], ['pull', 'Выдвижной']]}
-                  value={cabinetFaucet[cab.id] ?? 'arch'}
+                  options={[['arch', 'Дуга'], ['straight', 'Прямой'], ['pull', 'Выдвижной'], ['twin', 'Двухвентильный'], ['spring', 'Пружина']]}
+                  value={cabinetFaucet[cab.id] ?? globalFaucetStyle}
                   onPick={(v) => setFaucetStyle(cab.id, v as any)}
                 />
                 <ChipRow
                   label="КРАН · цвет"
                   options={[['chrome', 'Хром'], ['black', 'Чёрный'], ['gold', 'Золото']]}
-                  value={cabinetFaucetFinish[cab.id] ?? 'chrome'}
+                  value={cabinetFaucetFinish[cab.id] ?? globalFaucetFinish}
                   onPick={(v) => setFaucetFinish(cab.id, v as any)}
                 />
               </>
@@ -352,15 +357,15 @@ export function SelectionPill() {
               <>
                 <ChipRow
                   label="ПЛИТА"
-                  options={[['induction', 'Индукция'], ['gas', 'Газ']]}
+                  options={[['induction', 'Индукция'], ['gas', 'Газ'], ['gas_glass', 'Газ на стекле']]}
                   value={cabinetStove[cab.id] ?? stoveTypeDefault}
                   onPick={(v) => setStove(cab.id, v as any)}
                 />
                 <ChipRow
                   label="КОНФОРКИ"
-                  options={[['4', '4 зоны'], ['2', '2 зоны']]}
+                  options={[['4', '4 зоны'], ['2', '2 зоны'], ['1', '1 (домино)']]}
                   value={String(cabinetBurners[cab.id] ?? 4)}
-                  onPick={(v) => setBurners(cab.id, v === '2' ? 2 : 4)}
+                  onPick={(v) => setBurners(cab.id, v === '1' ? 1 : v === '2' ? 2 : 4)}
                 />
               </>
             )}

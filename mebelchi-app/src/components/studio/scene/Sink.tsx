@@ -191,6 +191,71 @@ function Faucet({
     );
   }
 
+  if (style === 'twin') {
+    /* Classic two-handle mixer: central low spout + two valve handles. */
+    const spoutH = 0.16;
+    return (
+      <group onClick={press}>
+        {base}
+        {/* central arched spout */}
+        <mesh position={[0, baseY + spoutH / 2, backZ]}>
+          <cylinderGeometry args={[0.012, 0.012, spoutH, 16]} />{chrome}
+        </mesh>
+        <mesh position={[0, baseY + spoutH, backZ + 0.04]} rotation={[Math.PI / 2.2, 0, 0]}>
+          <cylinderGeometry args={[0.01, 0.011, 0.09, 14]} />{chrome}
+        </mesh>
+        {/* two valve handles (cross knobs) left + right */}
+        {[-0.06, 0.06].map((dx, i) => (
+          <group key={i} position={[dx, baseY + 0.03, backZ]}>
+            <mesh><cylinderGeometry args={[0.01, 0.01, 0.05, 12]} />{chrome}</mesh>
+            <mesh position={[0, 0.03, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <boxGeometry args={[0.05, 0.008, 0.008]} />{chrome}
+            </mesh>
+            <mesh position={[0, 0.03, 0]}>
+              <boxGeometry args={[0.008, 0.008, 0.05]} />{chrome}
+            </mesh>
+          </group>
+        ))}
+      </group>
+    );
+  }
+
+  if (style === 'spring') {
+    /* Industrial pull-down with a coiled spring around the neck. */
+    const columnH = 0.16;
+    const springTop = baseY + 0.32;
+    const coils = 6;
+    return (
+      <group onClick={press}>
+        {base}
+        <mesh position={[0, baseY + columnH / 2, backZ]}>
+          <cylinderGeometry args={[0.014, 0.014, columnH, 16]} />{chrome}
+        </mesh>
+        {/* coil spring */}
+        {Array.from({ length: coils }).map((_, i) => (
+          <mesh
+            key={i}
+            position={[0, baseY + columnH + (i / coils) * 0.16, backZ]}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <torusGeometry args={[0.018, 0.003, 6, 16]} />{chrome}
+          </mesh>
+        ))}
+        {/* top curve forward + spray head */}
+        <mesh position={[0, springTop, backZ + 0.03]} rotation={[Math.PI / 2.4, 0, 0]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.09, 14]} />{chrome}
+        </mesh>
+        <mesh position={[0, springTop - 0.04, backZ + 0.07]} rotation={[Math.PI / 6, 0, 0]}>
+          <cylinderGeometry args={[0.015, 0.02, 0.06, 16]} />{chrome}
+        </mesh>
+        {/* side lever */}
+        <mesh position={[0, baseY + columnH - 0.02, backZ - 0.03]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.006, 0.006, 0.06, 10]} />{chrome}
+        </mesh>
+      </group>
+    );
+  }
+
   /* arch (default) — tall gooseneck */
   const columnH = 0.22;
   const columnY = baseY + columnH / 2;
@@ -234,9 +299,10 @@ export function Sink({ xOffset, width, worktopTopY, sinkType, faucetStyle = 'arc
   const sinkZ = -CABINET_DEPTH / 2 + rimD / 2 + 0.06; // toward front, leaving room for faucet
   const basinDepth = 0.08;
 
-  /* For double-sink we split rimW into 2 basins around a small divider */
-  const basinW = sinkType === 'double' ? (rimW - 0.012) / 2 : rimW - 0.012;
+  const innerW = rimW - 0.012;
   const basinD = rimD - 0.012;
+  const fullBasinW = innerW;
+  const halfBasinW = (innerW - 0.012) / 2;
 
   return (
     <group position={[xOffset, 0, sinkZ]}>
@@ -249,42 +315,53 @@ export function Sink({ xOffset, width, worktopTopY, sinkType, faucetStyle = 'arc
         <meshStandardMaterial color={RIM_COLOR} roughness={0.25} metalness={0.75} />
       </mesh>
 
-      {/* Basin(s) — recessed */}
+      {/* Single — one full basin */}
       {sinkType === 'single' && (
-        <SingleBasin
-          cx={0}
-          basinW={basinW}
-          basinD={basinD}
-          rimY={rimY}
-          rimThickness={rimThickness}
-          depth={basinDepth}
-        />
+        <SingleBasin cx={0} basinW={fullBasinW} basinD={basinD} rimY={rimY} rimThickness={rimThickness} depth={basinDepth} />
       )}
+
+      {/* Double — two equal basins + divider */}
       {sinkType === 'double' && (
         <>
-          <SingleBasin
-            cx={-(basinW / 2 + 0.006)}
-            basinW={basinW}
-            basinD={basinD}
-            rimY={rimY}
-            rimThickness={rimThickness}
-            depth={basinDepth}
-          />
-          <SingleBasin
-            cx={+(basinW / 2 + 0.006)}
-            basinW={basinW}
-            basinD={basinD}
-            rimY={rimY}
-            rimThickness={rimThickness}
-            depth={basinDepth}
-          />
-          {/* Divider strip on rim */}
+          <SingleBasin cx={-(halfBasinW / 2 + 0.006)} basinW={halfBasinW} basinD={basinD} rimY={rimY} rimThickness={rimThickness} depth={basinDepth} />
+          <SingleBasin cx={+(halfBasinW / 2 + 0.006)} basinW={halfBasinW} basinD={basinD} rimY={rimY} rimThickness={rimThickness} depth={basinDepth} />
           <mesh position={[0, rimY + 0.0015, 0]}>
             <boxGeometry args={[0.008, 0.003, basinD]} />
             <meshStandardMaterial color={RIM_COLOR} roughness={0.3} metalness={0.7} />
           </mesh>
         </>
       )}
+
+      {/* One-and-a-half — big basin + small basin */}
+      {sinkType === 'one_half' && (() => {
+        const big = innerW * 0.58;
+        const small = innerW * 0.32;
+        return (
+          <>
+            <SingleBasin cx={-(innerW / 2 - big / 2)} basinW={big} basinD={basinD} rimY={rimY} rimThickness={rimThickness} depth={basinDepth} />
+            <SingleBasin cx={+(innerW / 2 - small / 2)} basinW={small} basinD={basinD * 0.8} rimY={rimY} rimThickness={rimThickness} depth={basinDepth * 0.7} />
+          </>
+        );
+      })()}
+
+      {/* Drainboard — basin on the left + ribbed drying wing on the right */}
+      {sinkType === 'drainboard' && (() => {
+        const basin = innerW * 0.55;
+        const wingW = innerW * 0.4;
+        const wingCx = innerW / 2 - wingW / 2;
+        return (
+          <>
+            <SingleBasin cx={-(innerW / 2 - basin / 2)} basinW={basin} basinD={basinD} rimY={rimY} rimThickness={rimThickness} depth={basinDepth} />
+            {/* drying ribs (raised lines on the rim) */}
+            {[-0.3, -0.1, 0.1, 0.3].map((fz, i) => (
+              <mesh key={i} position={[wingCx, rimY + 0.002, basinD * fz]}>
+                <boxGeometry args={[wingW - 0.02, 0.003, 0.004]} />
+                <meshStandardMaterial color={DRAIN_COLOR} roughness={0.4} metalness={0.6} />
+              </mesh>
+            ))}
+          </>
+        );
+      })()}
 
       {/* Faucet — swappable silhouette + finish, its own click target */}
       <Faucet style={faucetStyle} finish={faucetFinish} rimY={rimY} rimD={rimD} onPress={onFaucetPress} />

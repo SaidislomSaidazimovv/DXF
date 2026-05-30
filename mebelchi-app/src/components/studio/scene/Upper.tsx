@@ -173,6 +173,45 @@ export function Upper({
     );
   }
 
+  /* ── LIFT — single door hinged at TOP, tilted up ───────── */
+  if (kind === 'lift') {
+    return (
+      <group position={[position[0], 0, upperCenterZ]} onClick={onBodyClick}>
+        <Shell bodyW={bodyW} cy={cy} facadeColor={facadeColor} />
+        {/* Door pivots at the top-front edge, tilts up and out ~55°. */}
+        <group position={[0, cy + UPPER_HEIGHT / 2, frontZ]} rotation={[-0.95, 0, 0]}>
+          <mesh position={[0, UPPER_HEIGHT / 2 - 0.01, 0]}>
+            <boxGeometry args={[bodyW - 0.01, UPPER_HEIGHT - 0.02, 0.016]} />
+            <meshStandardMaterial color={facadeColor} roughness={0.55} />
+          </mesh>
+          <Handle type={handle} x={0} y={0.04} frontZ={0.01} panelWidth={bodyW * 0.5}
+            orientation="horizontal" accent={accent} />
+        </group>
+        {isSelected && <SelHighlight cy={cy} bodyW={bodyW} />}
+      </group>
+    );
+  }
+
+  /* ── RAIL — open shelf with a front rail bar ───────────── */
+  if (kind === 'rail') {
+    const chrome = <meshStandardMaterial color={0xb9bec2} roughness={0.3} metalness={0.85} />;
+    return (
+      <group position={[position[0], 0, upperCenterZ]} onClick={onBodyClick}>
+        <Shell bodyW={bodyW} cy={cy} facadeColor={facadeColor} />
+        {/* Horizontal rail across the front, mid-low */}
+        <mesh position={[0, cy - 0.12, frontZ + 0.02]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.008, 0.008, bodyW - 0.06, 12]} />{chrome}
+        </mesh>
+        {[-bodyW / 2 + 0.04, bodyW / 2 - 0.04].map((x, i) => (
+          <mesh key={i} position={[x, cy - 0.12, frontZ + 0.01]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.04, 10]} />{chrome}
+          </mesh>
+        ))}
+        {isSelected && <SelHighlight cy={cy} bodyW={bodyW} />}
+      </group>
+    );
+  }
+
   /* ── CLOSED — solid facade box + handle(s) ─────────────── */
   return (
     <group position={[position[0], 0, upperCenterZ]}>

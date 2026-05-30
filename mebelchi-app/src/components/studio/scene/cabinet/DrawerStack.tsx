@@ -138,8 +138,9 @@ export function DrawerStack({
     const handleY = cy + frontH / 2 - 0.05;
 
     const kind: DrawerKind = drawerTypes[`${cabId}#${i}`] ?? 'closed';
-    const isOpen = kind === 'open' || kind === 'organizer';
-    const frontZ = isOpen ? FRONT + OPEN_OUT : FRONT;
+    const pulledOut = kind === 'open' || kind === 'organizer' || kind === 'mesh';
+    const frontZ = pulledOut ? FRONT + OPEN_OUT : FRONT;
+    const fz = frontZ + PANEL_T / 2;
 
     return (
       <group key={i}>
@@ -149,8 +150,8 @@ export function DrawerStack({
           <meshStandardMaterial color={GROOVE_COLOR} roughness={0.9} />
         </mesh>
 
-        {/* Open box (visible cavity) when pulled out — connects to the front */}
-        {isOpen && (
+        {/* Open box (visible cavity) when pulled out */}
+        {pulledOut && (
           <OpenBox
             w={frontW}
             h={frontH}
@@ -161,23 +162,68 @@ export function DrawerStack({
           />
         )}
 
-        {/* Drawer front panel — pushed forward when open */}
-        <mesh position={[0, cy, frontZ]} onClick={press}>
-          <boxGeometry args={[frontW, frontH, PANEL_T]} />
-          <meshStandardMaterial color={facadeColor} roughness={0.6} />
-        </mesh>
+        {/* Mesh basket — wire grid overlay on the open box front */}
+        {kind === 'mesh' && (
+          <group>
+            {[-0.3, -0.1, 0.1, 0.3].map((fx, k) => (
+              <mesh key={'v' + k} position={[frontW * fx, cy, fz]}>
+                <boxGeometry args={[0.004, frontH - 0.02, 0.004]} />
+                <meshStandardMaterial color={0x8a8f94} roughness={0.5} metalness={0.7} />
+              </mesh>
+            ))}
+            {[-0.25, 0, 0.25].map((fy, k) => (
+              <mesh key={'h' + k} position={[0, cy + frontH * fy, fz]}>
+                <boxGeometry args={[frontW - 0.02, 0.004, 0.004]} />
+                <meshStandardMaterial color={0x8a8f94} roughness={0.5} metalness={0.7} />
+              </mesh>
+            ))}
+          </group>
+        )}
 
-        {/* Per-drawer handle (rides with the front) */}
-        <Handle
-          type={handle}
-          x={0}
-          y={handleY}
-          frontZ={frontZ + PANEL_T / 2}
-          panelWidth={frontW}
-          orientation="horizontal"
-          accent={accent}
-          onPress={onSelect}
-        />
+        {/* Glass-front drawer — translucent panel + facade frame */}
+        {kind === 'glass' ? (
+          <group>
+            {/* dark interior hint */}
+            <mesh position={[0, cy, FRONT - 0.02]}>
+              <boxGeometry args={[frontW - 0.04, frontH - 0.04, 0.004]} />
+              <meshStandardMaterial color={0x20201e} roughness={0.85} />
+            </mesh>
+            {/* glass */}
+            <mesh position={[0, cy, frontZ]} onClick={press}>
+              <boxGeometry args={[frontW - 0.05, frontH - 0.05, 0.004]} />
+              <meshStandardMaterial color={0x2a3030} transparent opacity={0.4} roughness={0.12} metalness={0.4} />
+            </mesh>
+            {/* frame border */}
+            {[[0, frontH / 2 - 0.012, frontW, 0.024], [0, -frontH / 2 + 0.012, frontW, 0.024],
+              [-frontW / 2 + 0.012, 0, 0.024, frontH], [frontW / 2 - 0.012, 0, 0.024, frontH]]
+              .map((s, k) => (
+                <mesh key={k} position={[s[0], cy + s[1], frontZ + 0.002]}>
+                  <boxGeometry args={[s[2], s[3], PANEL_T]} />
+                  <meshStandardMaterial color={facadeColor} roughness={0.6} />
+                </mesh>
+              ))}
+          </group>
+        ) : kind !== 'mesh' && (
+          /* Solid drawer front (closed / open / organizer) */
+          <mesh position={[0, cy, frontZ]} onClick={press}>
+            <boxGeometry args={[frontW, frontH, PANEL_T]} />
+            <meshStandardMaterial color={facadeColor} roughness={0.6} />
+          </mesh>
+        )}
+
+        {/* Per-drawer handle (rides with the front) — skip for mesh basket */}
+        {kind !== 'mesh' && (
+          <Handle
+            type={handle}
+            x={0}
+            y={handleY}
+            frontZ={fz}
+            panelWidth={frontW}
+            orientation="horizontal"
+            accent={accent}
+            onPress={onSelect}
+          />
+        )}
       </group>
     );
   });
