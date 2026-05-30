@@ -28,6 +28,7 @@ export function Kitchen() {
   const cabinetBurners = useUI((s) => s.cabinetBurners);
   const upperMaterial = useUI((s) => s.upperMaterial);
   const upperHandle = useUI((s) => s.upperHandle);
+  const upperType = useUI((s) => s.upperType);
   const worktopOverride = useUI((s) => s.worktopOverride);
   const selectedId = useUI((s) => s.selectedCabinetId);
   const selectedUpperId = useUI((s) => s.selectedUpperId);
@@ -131,6 +132,7 @@ export function Kitchen() {
                 width={p.cab.width}
                 facadeColor={facade}
                 handle={upperHandle[p.cab.id] ?? 'bar'}
+                kind={upperType[p.cab.id] ?? 'closed'}
                 hasHandle={true}
                 isSelected={selectedUpperId === p.cab.id}
                 onSelect={() => { hapticTap(); selectUpper(p.cab.id); }}

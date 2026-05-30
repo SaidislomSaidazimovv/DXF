@@ -23,6 +23,7 @@ import type {
   BurnerCount,
   DoorStyle,
   DrawerKind,
+  UpperKind,
   FaucetFinish,
   FaucetStyle,
   HandleType,
@@ -132,6 +133,7 @@ export interface UIState {
   /** Per-upper overrides (keyed by the base cabinet id beneath the upper). */
   upperMaterial: Record<string, MaterialId>;
   upperHandle: Record<string, HandleType>;
+  upperType: Record<string, UpperKind>;
   auxMaterials: AuxMaterials;
 
   // Phase D — engineering
@@ -205,6 +207,7 @@ export interface UIState {
   setUpperMaterial: (cabId: string, m: MaterialId) => void;
   cycleUpperHandle: (cabId: string) => void;
   setUpperHandle: (cabId: string, v: HandleType) => void;
+  setUpperType: (cabId: string, v: UpperKind) => void;
   resizeCabinet: (cabId: string, deltaMm: number) => void;
   setCabinetDrawerCount: (cabId: string, count: 2 | 3 | 4) => void;
   cycleCabinetDrawerCount: (cabId: string) => void;
@@ -280,6 +283,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   drawerTypes: {},
   upperMaterial: {},
   upperHandle: {},
+  upperType: {},
   auxMaterials: { ...DEFAULT_AUX },
 
   // Phase D
@@ -331,6 +335,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       drawerTypes: {},
       upperMaterial: {},
       upperHandle: {},
+      upperType: {},
       auxMaterials: { ...DEFAULT_AUX },
       cabinetHardware: {},
       hardeningPanels: [],
@@ -434,6 +439,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       drawerTypes: {},
       upperMaterial: {},
       upperHandle: {},
+      upperType: {},
       cabinetHardware: {},
       hardeningPanels: [],
       selectedCabinetId: null,
@@ -487,6 +493,7 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       drawerTypes: {},
       upperMaterial: {},
       upperHandle: {},
+      upperType: {},
       cabinetHardware: {},
       hardeningPanels: [],
       selectedCabinetId: null,
@@ -609,6 +616,9 @@ export const useUI = create<UIState>()(persist((set, get) => ({
 
   setUpperHandle: (cabId, v) =>
     set((s) => ({ upperHandle: { ...s.upperHandle, [cabId]: v } })),
+
+  setUpperType: (cabId, v) =>
+    set((s) => ({ upperType: { ...s.upperType, [cabId]: v } })),
 
   resizeCabinet: (cabId, deltaMm) =>
     set((s) => {

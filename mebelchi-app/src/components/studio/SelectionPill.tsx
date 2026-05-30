@@ -49,11 +49,13 @@ export function SelectionPill() {
   const drawerTypes = useUI((s) => s.drawerTypes);
   const upperMaterialMap = useUI((s) => s.upperMaterial);
   const upperHandleMap = useUI((s) => s.upperHandle);
+  const upperTypeMap = useUI((s) => s.upperType);
 
   /* Direct setters for chip controls */
   const setCabMaterial = useUI((s) => s.setCabinetMaterial);
   const setUpperMaterial = useUI((s) => s.setUpperMaterial);
   const setUpperHandle = useUI((s) => s.setUpperHandle);
+  const setUpperType = useUI((s) => s.setUpperType);
   const setDoorStyle = useUI((s) => s.setCabinetDoorStyle);
   const setHandle = useUI((s) => s.setCabinetHandle);
   const setSink = useUI((s) => s.setCabinetSink);
@@ -128,6 +130,12 @@ export function SelectionPill() {
           </View>
         </ScrollView>
 
+        <ChipRow
+          label="ТИП"
+          options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['glass', 'Стекло']]}
+          value={upperTypeMap[selectedUpperId] ?? 'closed'}
+          onPick={(v) => setUpperType(selectedUpperId, v as any)}
+        />
         <ChipRow
           label="РУЧКА"
           options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}

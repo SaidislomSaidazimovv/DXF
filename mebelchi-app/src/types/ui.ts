@@ -133,6 +133,8 @@ export type FaucetFinish = 'chrome' | 'black' | 'gold';
 export type BurnerCount = 2 | 4;
 /** Per-drawer presentation: closed front, pulled-open box, or open organizer. */
 export type DrawerKind = 'closed' | 'open' | 'organizer';
+/** Upper (wall) cabinet presentation: closed door, open shelves, or glass door. */
+export type UpperKind = 'closed' | 'open' | 'glass';
 
 export interface Cabinet {
   id: string;

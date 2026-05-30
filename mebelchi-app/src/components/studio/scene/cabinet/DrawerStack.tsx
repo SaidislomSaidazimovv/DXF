@@ -44,49 +44,62 @@ const BOX_COLOR = 0xcfc6b4;    // light interior of an open drawer box
 const BOX_WALL = 0x9a8f78;     // box side walls
 const OPEN_OUT = 0.26;         // how far an open drawer slides forward (m)
 
+/**
+ * OpenBox — the visible drawer box for a pulled-out drawer. It connects
+ * tightly to the BACK of the proud front panel and extends into the carcass,
+ * so the front + bottom + 2 sides + back read as one solid open container
+ * (not loose floating pieces).
+ */
 function OpenBox({
-  w, h, frontFaceY, organizer, lineCol,
-}: { w: number; h: number; frontFaceY: number; organizer: boolean; lineCol: number }) {
-  const depth = CABINET_DEPTH - 0.08;
-  const innerW = w - 0.02;
-  const wallT = 0.012;
-  /* Box centre sits between the cabinet front and the pulled-out front. */
-  const zCenter = FRONT + OPEN_OUT / 2 - depth / 2;
-  const wallY = frontFaceY;
+  w, h, frontFaceY, frontZ, organizer, lineCol,
+}: { w: number; h: number; frontFaceY: number; frontZ: number; organizer: boolean; lineCol: number }) {
+  const wallT = 0.014;
+  const innerW = w - 0.004;
+  /* Front of the box meets the back face of the door panel; back sits in
+     the carcass. depth/zCenter computed so there are no gaps. */
+  const boxFrontZ = frontZ - PANEL_T / 2;
+  const boxBackZ = FRONT - 0.30;
+  const depth = boxFrontZ - boxBackZ;
+  const zCenter = (boxFrontZ + boxBackZ) / 2;
+
+  const bottomY = frontFaceY - h / 2 + wallT / 2;
+  const wallH = h - 0.006;
+  const wallY = bottomY - wallT / 2 + wallH / 2;
+
   return (
     <group>
-      {/* Bottom */}
-      <mesh position={[0, frontFaceY - h / 2 + 0.01, zCenter]}>
-        <boxGeometry args={[innerW, 0.012, depth]} />
+      {/* Bottom — full footprint */}
+      <mesh position={[0, bottomY, zCenter]}>
+        <boxGeometry args={[innerW, wallT, depth]} />
         <meshStandardMaterial color={BOX_COLOR} roughness={0.8} />
       </mesh>
-      {/* Side walls */}
+      {/* Left + right side walls — full depth, flush with bottom & front */}
       <mesh position={[-innerW / 2 + wallT / 2, wallY, zCenter]}>
-        <boxGeometry args={[wallT, h - 0.03, depth]} />
+        <boxGeometry args={[wallT, wallH, depth]} />
         <meshStandardMaterial color={BOX_WALL} roughness={0.75} />
       </mesh>
       <mesh position={[+innerW / 2 - wallT / 2, wallY, zCenter]}>
-        <boxGeometry args={[wallT, h - 0.03, depth]} />
+        <boxGeometry args={[wallT, wallH, depth]} />
         <meshStandardMaterial color={BOX_WALL} roughness={0.75} />
       </mesh>
-      {/* Back wall */}
-      <mesh position={[0, wallY, zCenter - depth / 2 + wallT / 2]}>
-        <boxGeometry args={[innerW, h - 0.03, wallT]} />
+      {/* Back wall — closes the rear, flush with sides */}
+      <mesh position={[0, wallY, boxBackZ + wallT / 2]}>
+        <boxGeometry args={[innerW, wallH, wallT]} />
         <meshStandardMaterial color={BOX_WALL} roughness={0.75} />
       </mesh>
 
-      {/* Organizer dividers — cutlery-tray look on the bottom */}
+      {/* Organizer dividers — cutlery-tray grid on the bottom */}
       {organizer && (
         <>
-          {[-0.18, 0, 0.18].map((fx, i) => (
-            <mesh key={'lx' + i} position={[innerW * fx, frontFaceY - h / 2 + 0.03, zCenter]}>
-              <boxGeometry args={[0.006, 0.04, depth - 0.04]} />
+          {[-0.3, 0, 0.3].map((fx, i) => (
+            <mesh key={'lx' + i} position={[innerW * fx, bottomY + 0.025, zCenter]}>
+              <boxGeometry args={[0.006, 0.045, depth - 0.04]} />
               <meshStandardMaterial color={lineCol} roughness={0.7} />
             </mesh>
           ))}
-          {[-depth * 0.18, depth * 0.18].map((fz, i) => (
-            <mesh key={'lz' + i} position={[0, frontFaceY - h / 2 + 0.03, zCenter + fz]}>
-              <boxGeometry args={[innerW - 0.02, 0.04, 0.006]} />
+          {[-depth * 0.2, depth * 0.2].map((fz, i) => (
+            <mesh key={'lz' + i} position={[0, bottomY + 0.025, zCenter + fz]}>
+              <boxGeometry args={[innerW - 0.03, 0.045, 0.006]} />
               <meshStandardMaterial color={lineCol} roughness={0.7} />
             </mesh>
           ))}
@@ -136,12 +149,13 @@ export function DrawerStack({
           <meshStandardMaterial color={GROOVE_COLOR} roughness={0.9} />
         </mesh>
 
-        {/* Open box (visible cavity) when pulled out */}
+        {/* Open box (visible cavity) when pulled out — connects to the front */}
         {isOpen && (
           <OpenBox
             w={frontW}
             h={frontH}
             frontFaceY={cy}
+            frontZ={frontZ}
             organizer={kind === 'organizer'}
             lineCol={lineCol}
           />
