@@ -130,7 +130,7 @@ export function CameraRig() {
         const detailY = selectedDetail === 'faucet' ? worktopY + 0.18 : worktopY + 0.06;
         const detailZ =
           placed.groupPosition[2] - (selectedDetail === 'faucet' ? GEOMETRY.CABINET_DEPTH * 0.18 : 0);
-        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 2.35, 0.42, detailZ);
+        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 2.7, 0.55, detailZ);
       } else {
         target = OVERVIEW_TARGET;
       }
@@ -141,10 +141,10 @@ export function CameraRig() {
       target = placed
         ? frameTarget(
             placed.groupPosition[0],
-            placed.bodyCenterY + 0.25,
+            placed.bodyCenterY + 0.3,
             placed.groupPosition[2],
-            3.1 + placed.cab.width * 0.4,
-            0.6,
+            3.4 + placed.cab.width * 0.4,
+            0.8,
           )
         : OVERVIEW_TARGET;
     } else {
