@@ -178,13 +178,15 @@ export function Upper({
     return (
       <group position={[position[0], 0, upperCenterZ]} onClick={onBodyClick}>
         <Shell bodyW={bodyW} cy={cy} facadeColor={facadeColor} />
-        {/* Door pivots at the top-front edge, tilts up and out ~55°. */}
-        <group position={[0, cy + UPPER_HEIGHT / 2, frontZ]} rotation={[-0.95, 0, 0]}>
-          <mesh position={[0, UPPER_HEIGHT / 2 - 0.01, 0]}>
+        {/* Door hinged at the TOP-front edge; closed it covers the opening
+           (extends DOWN), open it swings the bottom edge up + forward (~50°). */}
+        <group position={[0, cy + UPPER_HEIGHT / 2, frontZ]} rotation={[-0.9, 0, 0]}>
+          <mesh position={[0, -(UPPER_HEIGHT / 2 - 0.01), 0.008]}>
             <boxGeometry args={[bodyW - 0.01, UPPER_HEIGHT - 0.02, 0.016]} />
             <meshStandardMaterial color={facadeColor} roughness={0.55} />
           </mesh>
-          <Handle type={handle} x={0} y={0.04} frontZ={0.01} panelWidth={bodyW * 0.5}
+          {/* handle near the bottom (free) edge of the lifted door */}
+          <Handle type={handle} x={0} y={-(UPPER_HEIGHT - 0.08)} frontZ={0.016} panelWidth={bodyW * 0.5}
             orientation="horizontal" accent={accent} />
         </group>
         {isSelected && <SelHighlight cy={cy} bodyW={bodyW} />}

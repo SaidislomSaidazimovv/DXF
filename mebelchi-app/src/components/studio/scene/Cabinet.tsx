@@ -534,10 +534,15 @@ export function Cabinet({
       {/* Body — main click target (uses face normal to differentiate door vs side).
           In X-ray mode the facade drops to 35% opacity so the carcass and
           drilling marks become visible. */}
-      <mesh position={[0, bodyY, 0]} onClick={onBodyClick}>
-        <boxGeometry args={[bodyW, bodyHeight, CABINET_DEPTH]} />
+      <mesh
+        position={[0, bodyY, (isOpenShelf || isWine) ? -CABINET_DEPTH / 2 + 0.01 : 0]}
+        onClick={onBodyClick}
+      >
+        {/* Open shelf / wine cabinets are a thin dark BACK panel so the
+            interior (frame + shelves/lattice) reads as open. */}
+        <boxGeometry args={[bodyW, bodyHeight, (isOpenShelf || isWine) ? 0.02 : CABINET_DEPTH]} />
         <meshStandardMaterial
-          color={isFridge ? 0xd6d9dc : (isOpenShelf || isWine) ? 0x2a2825 : facadeColor}
+          color={isFridge ? 0xd6d9dc : (isOpenShelf || isWine) ? 0x241f1b : facadeColor}
           roughness={isFridge ? 0.32 : 0.6}
           metalness={isFridge ? 0.5 : 0}
           transparent={isXray}
@@ -738,12 +743,10 @@ export function Cabinet({
             </mesh>
           ))}
           {[-1, 1].map((s, i) => (
-            <React.Fragment key={'x' + i}>
-              <mesh position={[0, bodyY, FRONT - 0.02]} rotation={[0, 0, s * 0.7]}>
-                <boxGeometry args={[0.012, bodyHeight * 1.3, 0.012]} />
-                <meshStandardMaterial color={accent} roughness={0.5} metalness={0.3} />
-              </mesh>
-            </React.Fragment>
+            <mesh key={'x' + i} position={[0, bodyY, 0]} rotation={[0, 0, s * 0.7]}>
+              <boxGeometry args={[0.012, bodyHeight * 1.25, 0.012]} />
+              <meshStandardMaterial color={accent} roughness={0.5} metalness={0.3} />
+            </mesh>
           ))}
         </group>
       )}

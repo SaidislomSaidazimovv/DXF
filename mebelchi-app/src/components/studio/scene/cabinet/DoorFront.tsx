@@ -61,34 +61,31 @@ function Door({
         <meshStandardMaterial color={facadeColor} roughness={0.5} metalness={0.04} />
       </mesh>
 
-      {/* ── Shaker: recessed centre panel + shadow rim ── */}
+      {/* ── Shaker: routed frame — dark groove lines PROUD of the face ── */}
       {style === 'shaker' && (() => {
         const inset = 0.06;
         const pw = w - inset * 2;
         const ph = h - inset * 2;
-        const rim = 0.006;
-        const sh = <meshStandardMaterial color={lineCol} transparent opacity={0.45} />;
+        const t = 0.008;
+        const z = frontZ + 0.0015;   // proud of the front face → visible
+        const dark = <meshStandardMaterial color={SHADOW} transparent opacity={0.55} roughness={0.9} />;
         return (
           <group>
-            <mesh position={[0, yc, frontZ - 0.006]}>
-              <boxGeometry args={[pw, ph, 0.004]} />
-              <meshStandardMaterial color={facadeColor} roughness={0.55} />
-            </mesh>
-            <mesh position={[0, yc + ph / 2 + rim / 2, frontZ - 0.002]}><boxGeometry args={[pw + rim * 2, rim, 0.002]} />{sh}</mesh>
-            <mesh position={[0, yc - ph / 2 - rim / 2, frontZ - 0.002]}><boxGeometry args={[pw + rim * 2, rim, 0.002]} />{sh}</mesh>
-            <mesh position={[-pw / 2 - rim / 2, yc, frontZ - 0.002]}><boxGeometry args={[rim, ph, 0.002]} />{sh}</mesh>
-            <mesh position={[pw / 2 + rim / 2, yc, frontZ - 0.002]}><boxGeometry args={[rim, ph, 0.002]} />{sh}</mesh>
+            <mesh position={[0, yc + ph / 2, z]}><boxGeometry args={[pw, t, 0.002]} />{dark}</mesh>
+            <mesh position={[0, yc - ph / 2, z]}><boxGeometry args={[pw, t, 0.002]} />{dark}</mesh>
+            <mesh position={[-pw / 2, yc, z]}><boxGeometry args={[t, ph, 0.002]} />{dark}</mesh>
+            <mesh position={[pw / 2, yc, z]}><boxGeometry args={[t, ph, 0.002]} />{dark}</mesh>
           </group>
         );
       })()}
 
-      {/* ── Grooved: 3 recessed horizontal channels ── */}
+      {/* ── Grooved: 3 horizontal groove lines, proud of the face ── */}
       {style === 'grooved' && [0, 1, 2].map((k) => {
         const gy = yc - h / 2 + h * (0.3 + k * 0.2);
         return (
-          <mesh key={k} position={[0, gy, frontZ - 0.004]}>
-            <boxGeometry args={[w - 0.06, 0.012, 0.004]} />
-            <meshStandardMaterial color={SHADOW} roughness={0.85} />
+          <mesh key={k} position={[0, gy, frontZ + 0.0015]}>
+            <boxGeometry args={[w - 0.06, 0.01, 0.002]} />
+            <meshStandardMaterial color={SHADOW} transparent opacity={0.5} roughness={0.9} />
           </mesh>
         );
       })}
@@ -114,34 +111,30 @@ function Door({
         );
       })()}
 
-      {/* ── Slat: vertical recessed grooves ── */}
+      {/* ── Slat: vertical groove lines, proud of the face ── */}
       {style === 'slat' && [-0.3, -0.1, 0.1, 0.3].map((fx, k) => (
-        <mesh key={k} position={[w * fx, yc, frontZ - 0.004]}>
-          <boxGeometry args={[0.01, h - 0.06, 0.004]} />
-          <meshStandardMaterial color={SHADOW} roughness={0.85} />
+        <mesh key={k} position={[w * fx, yc, frontZ + 0.0015]}>
+          <boxGeometry args={[0.008, h - 0.06, 0.002]} />
+          <meshStandardMaterial color={SHADOW} transparent opacity={0.5} roughness={0.9} />
         </mesh>
       ))}
 
-      {/* ── Profile: double-framed routed panel (deeper than shaker) ── */}
+      {/* ── Profile: two concentric routed frames, proud of the face ── */}
       {style === 'profile' && (() => {
-        const rim = 0.006;
-        const insets = [0.05, 0.085];   // two concentric frames
+        const t = 0.007;
+        const z = frontZ + 0.0015;
         return (
           <group>
-            <mesh position={[0, yc, frontZ - 0.008]}>
-              <boxGeometry args={[w - insets[1] * 2, h - insets[1] * 2, 0.004]} />
-              <meshStandardMaterial color={facadeColor} roughness={0.58} />
-            </mesh>
-            {insets.map((ins, fi) => {
+            {[0.05, 0.09].map((ins, fi) => {
               const pw = w - ins * 2;
               const ph = h - ins * 2;
-              const sh = <meshStandardMaterial color={lineCol} transparent opacity={fi === 0 ? 0.35 : 0.5} />;
+              const dark = <meshStandardMaterial color={SHADOW} transparent opacity={fi === 0 ? 0.4 : 0.55} roughness={0.9} />;
               return (
                 <group key={fi}>
-                  <mesh position={[0, yc + ph / 2, frontZ - 0.002]}><boxGeometry args={[pw + rim, rim * 0.7, 0.002]} />{sh}</mesh>
-                  <mesh position={[0, yc - ph / 2, frontZ - 0.002]}><boxGeometry args={[pw + rim, rim * 0.7, 0.002]} />{sh}</mesh>
-                  <mesh position={[-pw / 2, yc, frontZ - 0.002]}><boxGeometry args={[rim * 0.7, ph, 0.002]} />{sh}</mesh>
-                  <mesh position={[pw / 2, yc, frontZ - 0.002]}><boxGeometry args={[rim * 0.7, ph, 0.002]} />{sh}</mesh>
+                  <mesh position={[0, yc + ph / 2, z]}><boxGeometry args={[pw, t, 0.002]} />{dark}</mesh>
+                  <mesh position={[0, yc - ph / 2, z]}><boxGeometry args={[pw, t, 0.002]} />{dark}</mesh>
+                  <mesh position={[-pw / 2, yc, z]}><boxGeometry args={[t, ph, 0.002]} />{dark}</mesh>
+                  <mesh position={[pw / 2, yc, z]}><boxGeometry args={[t, ph, 0.002]} />{dark}</mesh>
                 </group>
               );
             })}
