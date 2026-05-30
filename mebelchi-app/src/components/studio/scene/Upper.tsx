@@ -90,13 +90,14 @@ function OpenDoor({
         <boxGeometry args={[doorW, UPPER_HEIGHT - 0.02, 0.016]} />
         <meshStandardMaterial color={facadeColor} roughness={0.55} />
       </mesh>
-      {/* Handle near the free (inner) edge */}
+      {/* Handle on the door FACE, near the free (inner) edge, mid-low so it
+         never pokes past the panel edges. */}
       <Handle
         type={handle}
-        x={dir * (doorW - 0.04)}
-        y={-UPPER_HEIGHT / 2 + 0.06}
-        frontZ={0.018}
-        panelWidth={doorW}
+        x={dir * (doorW - 0.05)}
+        y={-0.08}
+        frontZ={0.016}
+        panelWidth={doorW * 0.7}
         orientation="vertical"
         accent={accent}
       />

@@ -103,6 +103,9 @@ export interface UIState {
   // Phase C — configuration
   globalMaterial: MaterialId;
   globalDoorStyle: DoorStyle;
+  globalHandle: HandleType;          // default handle for cabinets w/o override
+  globalFaucetStyle: FaucetStyle;    // default faucet shape
+  globalFaucetFinish: FaucetFinish;  // default faucet finish
   sinkType: SinkType;            // default for cabinets without an override
   stoveType: StoveType;          // default for cabinets without an override
   worktopOverride: number | null;
@@ -171,6 +174,11 @@ export interface UIState {
   cycleVariant: (direction: 1 | -1) => void;
   setGlobalMaterial: (m: MaterialId) => void;
   setCabinetMaterial: (cabId: string, m: MaterialId) => void;
+  /** One-tap whole-kitchen style: sets globals + worktop, clears overrides. */
+  applyStylePreset: (p: {
+    material: MaterialId; doorStyle: DoorStyle; handle: HandleType;
+    worktop: number; faucetStyle: FaucetStyle; faucetFinish: FaucetFinish;
+  }) => void;
   /** Context-aware material setter: targets the selected upper, else the
       selected cabinet, else the global material. Used by the material drawer. */
   setMaterialForSelection: (m: MaterialId) => void;
@@ -252,6 +260,9 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   // Phase C
   globalMaterial: 'white_classic',
   globalDoorStyle: 'flat',
+  globalHandle: 'bar',
+  globalFaucetStyle: 'arch',
+  globalFaucetFinish: 'chrome',
   sinkType: 'single',
   stoveType: 'induction',
   worktopOverride: null,
@@ -305,6 +316,9 @@ export const useUI = create<UIState>()(persist((set, get) => ({
       customerConfirmation: undefined,
       globalMaterial: 'white_classic',
       globalDoorStyle: 'flat',
+      globalHandle: 'bar',
+      globalFaucetStyle: 'arch',
+      globalFaucetFinish: 'chrome',
       sinkType: 'single',
       stoveType: 'induction',
       worktopOverride: null,
@@ -497,6 +511,24 @@ export const useUI = create<UIState>()(persist((set, get) => ({
   },
 
   setGlobalMaterial: (m) => set({ globalMaterial: m }),
+
+  applyStylePreset: (p) =>
+    set({
+      globalMaterial: p.material,
+      globalDoorStyle: p.doorStyle,
+      globalHandle: p.handle,
+      globalFaucetStyle: p.faucetStyle,
+      globalFaucetFinish: p.faucetFinish,
+      worktopOverride: p.worktop,
+      /* Clear per-element overrides so the style applies to the whole kitchen. */
+      cabinetMaterial: {},
+      cabinetDoorStyle: {},
+      cabinetHandle: {},
+      cabinetFaucet: {},
+      cabinetFaucetFinish: {},
+      upperMaterial: {},
+      upperHandle: {},
+    }),
 
   setCabinetMaterial: (cabId, m) =>
     set((s) => ({ cabinetMaterial: { ...s.cabinetMaterial, [cabId]: m } })),

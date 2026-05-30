@@ -16,6 +16,9 @@ export function Kitchen() {
   const variant = useUI(selectCurrentVariant);
   const globalMat = useUI((s) => s.globalMaterial);
   const globalDoorStyle = useUI((s) => s.globalDoorStyle);
+  const globalHandle = useUI((s) => s.globalHandle);
+  const globalFaucetStyle = useUI((s) => s.globalFaucetStyle);
+  const globalFaucetFinish = useUI((s) => s.globalFaucetFinish);
   const cabinetMaterial = useUI((s) => s.cabinetMaterial);
   const cabinetDoorStyle = useUI((s) => s.cabinetDoorStyle);
   const cabinetHandle = useUI((s) => s.cabinetHandle);
@@ -84,11 +87,11 @@ export function Kitchen() {
             position={p.groupPosition}
             facadeColor={facade}
             doorStyle={cabinetDoorStyle[p.cab.id] ?? globalDoorStyle}
-            handle={cabinetHandle[p.cab.id] ?? 'bar'}
+            handle={cabinetHandle[p.cab.id] ?? globalHandle}
             sinkType={cabinetSink[p.cab.id] ?? sinkType}
             stoveType={cabinetStove[p.cab.id] ?? stoveType}
-            faucetStyle={cabinetFaucet[p.cab.id] ?? 'arch'}
-            faucetFinish={cabinetFaucetFinish[p.cab.id] ?? 'chrome'}
+            faucetStyle={cabinetFaucet[p.cab.id] ?? globalFaucetStyle}
+            faucetFinish={cabinetFaucetFinish[p.cab.id] ?? globalFaucetFinish}
             burners={cabinetBurners[p.cab.id] ?? 4}
             isSelected={selectedId === p.cab.id}
             onSelect={() => { hapticTap(); selectCabinet(p.cab.id); }}
@@ -133,7 +136,7 @@ export function Kitchen() {
                 position={p.groupPosition}
                 width={p.cab.width}
                 facadeColor={facade}
-                handle={upperHandle[p.cab.id] ?? 'bar'}
+                handle={upperHandle[p.cab.id] ?? globalHandle}
                 kind={upperType[p.cab.id] ?? 'closed'}
                 hasHandle={true}
                 isSelected={selectedUpperId === p.cab.id}

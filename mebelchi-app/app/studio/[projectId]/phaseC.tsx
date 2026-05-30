@@ -24,6 +24,7 @@ import { StudioBottomBar } from '@/components/studio/StudioBottomBar';
 import { Canvas3D } from '@/components/studio/scene/Canvas3D';
 import { SelectionPill } from '@/components/studio/SelectionPill';
 import { MaterialDrawer } from '@/components/studio/MaterialDrawer';
+import { StyleBar } from '@/components/studio/StyleBar';
 import { PhaseStepper } from '@/components/phase/PhaseStepper';
 import { COLORS, SPACE, TYPE, RADII } from '@/lib/tokens';
 import { mockPrice } from '@/lib/pricing';
@@ -116,6 +117,8 @@ export default function PhaseC() {
       <View style={styles.warnRow}>
         <AdjacencyWarning visible={hasAdjacencyWarning} />
       </View>
+
+      <StyleBar />
 
       <GestureDetector gesture={swipePan}>
         <View collapsable={false} style={{ flex: 1 }}>
