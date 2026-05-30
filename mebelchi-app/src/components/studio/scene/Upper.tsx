@@ -78,11 +78,15 @@ function OpenDoor({
   accent: number; handle: HandleType; dir: 1 | -1;   // dir = which side it swings
 }) {
   const frontZ = UPPER_DEPTH / 2;
-  /* Group pivots at the hinge; door panel extends inward (toward centre) and
-     the whole group rotates ~105° around Y so the door swings to the front. */
+  /* Group pivots at the hinge (outer edge, front face). The door panel
+     extends inward toward the centre (local +x for the left door, scaled by
+     dir). Rotating by -dir·θ swings the FREE edge forward toward the viewer
+     (+Z) — a real door opening outward, ~100°. (Using +dir would swing it
+     backward into the carcass — the earlier bug.) */
+  const openAngle = -dir * 1.75;
   return (
-    <group position={[hingeX, cy, frontZ]} rotation={[0, dir * 1.85, 0]}>
-      <mesh position={[dir * doorW / 2, 0, 0]}>
+    <group position={[hingeX, cy, frontZ]} rotation={[0, openAngle, 0]}>
+      <mesh position={[dir * doorW / 2, 0, 0.008]}>
         <boxGeometry args={[doorW, UPPER_HEIGHT - 0.02, 0.016]} />
         <meshStandardMaterial color={facadeColor} roughness={0.55} />
       </mesh>
@@ -91,7 +95,7 @@ function OpenDoor({
         type={handle}
         x={dir * (doorW - 0.04)}
         y={-UPPER_HEIGHT / 2 + 0.06}
-        frontZ={0.01}
+        frontZ={0.018}
         panelWidth={doorW}
         orientation="vertical"
         accent={accent}
