@@ -27,16 +27,15 @@ function easeOutCubic(t: number): number {
 const FOV = 38;
 
 /**
- * Frame a focused element so its TRUE centre (centerY) lands ~20% from the
- * top of the screen — fully clear of the selection pill that covers the
- * bottom ~half. Principled, not guessed:
- *   • lookAt is set BELOW the element by dist·tan(~11°) ≈ dist·0.20, which
- *     places the element centre at +11° above the optical axis ≈ 20% down
- *     from the top edge (fov 38°).
- *   • camera height ∝ dist gives a gentle downward pitch.
- * Caller passes the element's REAL centre and a distance big enough that the
- * element's full height fits in the top band, clear of the pill (≥ ~4.5 for a
- * base cabinet so the plinth/floor edge sits ~38% from top, not ~46%).
+ * Frame a focused element large and near-centred — the bottom modal is gone
+ * (controls now live in a right-edge rail + flyout), so the element no longer
+ * has to be shoved into a narrow top band. Instead:
+ *   • lookBelow = dist·0.12 keeps the element a touch above centre, clear of
+ *     the bottom CTA bar;
+ *   • biasX shifts the aim slightly RIGHT so the element renders in the LEFT
+ *     portion of the screen, away from the right-side flyout. Portrait hfov is
+ *     narrow, so the factor is small (0.05) to avoid clipping the left edge.
+ *   • distances are much closer than before so the master sees the detail.
  */
 function frameTarget(
   cx: number,
@@ -44,12 +43,14 @@ function frameTarget(
   cz: number,
   dist: number,
   lookZ?: number,
+  biasX = 0.05,
 ): CameraTarget {
-  const side = cx >= 0 ? 0.32 : -0.32;
-  const lookBelow = dist * 0.20;   // → element centre ~20% from top
+  const side = cx >= 0 ? 0.28 : -0.28;
+  const lookBelow = dist * 0.12;     // element a touch above centre
+  const lookRight = dist * biasX;    // → element sits left, clear of flyout
   return {
-    position: [cx * 0.5 + side, centerY + dist * 0.30, cz + dist],
-    lookAt: [cx, centerY - lookBelow, lookZ ?? cz],
+    position: [cx * 0.5 + side, centerY + dist * 0.26, cz + dist],
+    lookAt: [cx + lookRight, centerY - lookBelow, lookZ ?? cz],
     fov: FOV,
     duration: 480,
   };
@@ -117,7 +118,8 @@ export function CameraRig() {
       const worktopY =
         GEOMETRY.PLINTH_HEIGHT + GEOMETRY.CABINET_HEIGHT + GEOMETRY.WORKTOP_THICKNESS;
       const cz = variant ? (findPlaced(variant, variant.cabinets[0]?.id)?.groupPosition[2] ?? 0) : 0;
-      target = frameTarget(0, worktopY, cz, 4.2);
+      /* Whole-run worktop is wide — keep it centred (no left bias) and farther. */
+      target = frameTarget(0, worktopY, cz, 4.0, undefined, 0);
     } else if (selectedUpperId) {
       /* Wall (upper) cabinet — true centre = upper mid-height. */
       camera.up.set(0, 1, 0);
@@ -128,7 +130,7 @@ export function CameraRig() {
             placed.groupPosition[0],
             upperY,
             placed.groupPosition[2] - GEOMETRY.CABINET_DEPTH / 2,
-            2.9 + placed.cab.width * 0.4,
+            2.5 + placed.cab.width * 0.4,
           )
         : OVERVIEW_TARGET;
     } else if (selectedDetail && selectedId) {
@@ -142,7 +144,7 @@ export function CameraRig() {
         const detailY = selectedDetail === 'faucet' ? worktopY + 0.14 : worktopY + 0.04;
         const detailZ =
           placed.groupPosition[2] - (selectedDetail === 'faucet' ? GEOMETRY.CABINET_DEPTH * 0.18 : 0);
-        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 3.4, detailZ);
+        target = frameTarget(placed.groupPosition[0], detailY, detailZ, 2.3, detailZ);
       } else {
         target = OVERVIEW_TARGET;
       }
@@ -158,7 +160,7 @@ export function CameraRig() {
             placed.groupPosition[0],
             baseCenterY,
             placed.groupPosition[2],
-            4.5 + placed.cab.width * 0.4,
+            3.2 + placed.cab.width * 0.45,
           )
         : OVERVIEW_TARGET;
     } else {

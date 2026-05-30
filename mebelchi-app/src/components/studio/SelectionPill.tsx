@@ -1,16 +1,20 @@
 /**
- * SelectionPill — HANDOVER §3.3.
+ * SelectionPill — right-edge contextual rail + flyout (research-driven redesign).
  *
- * Slides up from below the bottom bar when a cabinet is selected.
- * Contains:
- *   - Cabinet name + size
- *   - Close (×)
- *   - Width row [− 600 мм +]
- *   - "Цвет фасада" + 6 mini-swatches (per-cabinet material override)
- *   - Hint text
+ * Replaces the tall bottom modal that used to cover the 3D view (and forced
+ * the camera to zoom far out). Instead:
+ *   • a thin vertical RAIL pinned to the right edge shows only the section
+ *     icons relevant to the selected element (Material-Design navigation-rail
+ *     pattern: icon + tiny label, 3–7 destinations, ~64dp wide);
+ *   • tapping a section icon opens a narrow FLYOUT overlay to its left with
+ *     that section's controls, which the master scrolls + taps to choose;
+ *   • tapping the active icon again closes the flyout → full clean 3D.
+ *
+ * Because the bottom is now free, the camera can frame the element MUCH
+ * closer (CameraRig biases it to the left so the flyout never covers it).
  */
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUI, selectCurrentVariant } from '@/store/uiStore';
 import { cabinetLabel, INTERACTION } from '@/types/ui';
@@ -23,6 +27,13 @@ import { hapticTap, hapticSwatch } from '@/lib/haptics';
 
 /** Approx height of StudioBottomBar (paddingVert 12*2 + button height ~46) */
 const BOTTOM_BAR_HEIGHT = 78;
+
+interface Section {
+  key: string;
+  icon: string;
+  label: string;
+  content: React.ReactNode;
+}
 
 export function SelectionPill() {
   const selectedId = useUI((s) => s.selectedCabinetId);
@@ -37,7 +48,7 @@ export function SelectionPill() {
   const setWorktopColor = useUI((s) => s.setWorktopColor);
   const resizeCabinet = useUI((s) => s.resizeCabinet);
 
-  /* Per-cabinet current values + global fallbacks */
+  /* Per-element current values + global fallbacks */
   const globalMaterial = useUI((s) => s.globalMaterial);
   const globalDoorStyle = useUI((s) => s.globalDoorStyle);
   const sinkTypeDefault = useUI((s) => s.sinkType);
@@ -76,407 +87,495 @@ export function SelectionPill() {
 
   const t = useT();
   const insets = useSafeAreaInsets();
-  /* Position the pill ABOVE the bottom bar with margin, accounting for
-     the device's bottom safe area inset (system nav bar on Android). */
-  const bottomOffset = insets.bottom + BOTTOM_BAR_HEIGHT + 12;
+  const bottomAnchor = insets.bottom + BOTTOM_BAR_HEIGHT + 12;
 
-  const translateY = useRef(new Animated.Value(220)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const isOpen = !!selectedId || !!selectedUpperId || selectedWorktop;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: isOpen ? 0 : 220,
-        duration: 280,
-        easing: Easing.bezier(0.2, 0.9, 0.3, 1),
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: isOpen ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [isOpen, translateY, opacity]);
-
-  /* Worktop variant — name + close + colour swatches. */
-  if (selectedWorktop) {
-    return (
-      <Animated.View
-        pointerEvents="auto"
-        style={[styles.root, { bottom: bottomOffset, transform: [{ translateY }], opacity }]}
-      >
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.name}>СТОЛЕШНИЦА</Text>
-          </View>
-          <Pressable
-            onPress={() => { hapticTap(); selectWorktop(false); }}
-            hitSlop={12}
-            style={({ pressed }) => [styles.close, pressed && { opacity: 0.6 }]}
-          >
-            <Text style={styles.closeTxt}>×</Text>
-          </Pressable>
-        </View>
-        <View style={styles.divider} />
-        <Text style={styles.chipLabel}>ЦВЕТ СТОЛЕШНИЦЫ</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.swatchRow}>
-            {WORKTOP_COLORS.map((c) => {
-              const active = (worktopOverride ?? -1) === c.value;
-              return (
-                <Pressable
-                  key={c.value}
-                  onPress={() => { hapticSwatch(); setWorktopColor(c.value); }}
-                  style={[
-                    styles.worktopSwatch,
-                    { backgroundColor: '#' + c.value.toString(16).padStart(6, '0') },
-                    active && styles.worktopSwatchActive,
-                  ]}
-                />
-              );
-            })}
-          </View>
-        </ScrollView>
-      </Animated.View>
-    );
-  }
-
-  /* Upper (wall cabinet) variant — simpler pill: name + close + hint. */
-  if (selectedUpperId) {
-    return (
-      <Animated.View
-        pointerEvents="auto"
-        style={[styles.root, { bottom: bottomOffset, transform: [{ translateY }], opacity }]}
-      >
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.name}>ВЕРХНИЙ ШКАФ</Text>
-          </View>
-          <Pressable
-            onPress={() => { hapticTap(); selectUpper(null); }}
-            hitSlop={12}
-            style={({ pressed }) => [styles.close, pressed && { opacity: 0.6 }]}
-          >
-            <Text style={styles.closeTxt}>×</Text>
-          </Pressable>
-        </View>
-        <View style={styles.divider} />
-
-        {/* Colour swatches — per-upper override (horizontal scroll) */}
-        <Text style={styles.chipLabel}>ЦВЕТ ФАСАДА</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.swatchRow}>
-            {PALETTE_MATERIALS.map((m) => (
-              <MiniSwatch
-                key={m.id}
-                material={m}
-                active={(upperMaterialMap[selectedUpperId] ?? globalMaterial) === m.id}
-                onPress={() => { hapticSwatch(); setUpperMaterial(selectedUpperId, m.id as MaterialId); }}
-                size={34}
-              />
-            ))}
-          </View>
-        </ScrollView>
-
-        <ChipRow
-          label="ТИП"
-          options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['glass', 'Стекло'], ['lift', 'Подъёмный'], ['rail', 'Рейлинг']]}
-          value={upperTypeMap[selectedUpperId] ?? 'closed'}
-          onPick={(v) => setUpperType(selectedUpperId, v as any)}
-        />
-        <ChipRow
-          label="РУЧКА"
-          options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}
-          value={upperHandleMap[selectedUpperId] ?? 'bar'}
-          onPick={(v) => setUpperHandle(selectedUpperId, v as any)}
-        />
-      </Animated.View>
-    );
-  }
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const cab = variant?.cabinets.find((c) => c.id === selectedId);
+  const isOpen = selectedWorktop || !!selectedUpperId || !!cab;
 
-  if (!cab) {
-    /* Render but invisible — so the slide-down animation has something to animate */
-    return (
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.root, { bottom: bottomOffset, transform: [{ translateY }], opacity }]}
-      />
-    );
+  /* Identity of the current selection — re-opens the first section on change */
+  const selKey = selectedWorktop ? 'wt' : selectedUpperId ?? cab?.id ?? null;
+
+  /* ── Build the contextual section list ──────────────────────────────── */
+  const sections: Section[] = [];
+
+  const colorSwatches = (
+    activeId: string,
+    current: string,
+    onPick: (id: MaterialId) => void,
+  ) => (
+    <View style={styles.swatchGrid}>
+      {PALETTE_MATERIALS.map((m) => (
+        <MiniSwatch
+          key={m.id}
+          material={m}
+          active={current === m.id}
+          onPress={() => { hapticSwatch(); onPick(m.id as MaterialId); }}
+          size={44}
+        />
+      ))}
+    </View>
+  );
+
+  if (selectedWorktop) {
+    sections.push({
+      key: 'color',
+      icon: '🎨',
+      label: 'ЦВЕТ',
+      content: (
+        <View style={styles.swatchGrid}>
+          {WORKTOP_COLORS.map((c) => {
+            const active = (worktopOverride ?? -1) === c.value;
+            return (
+              <Pressable
+                key={c.value}
+                onPress={() => { hapticSwatch(); setWorktopColor(c.value); }}
+                style={[
+                  styles.worktopSwatch,
+                  { backgroundColor: '#' + c.value.toString(16).padStart(6, '0') },
+                  active && styles.worktopSwatchActive,
+                ]}
+              />
+            );
+          })}
+        </View>
+      ),
+    });
+  } else if (selectedUpperId) {
+    const id = selectedUpperId;
+    sections.push({
+      key: 'color',
+      icon: '🎨',
+      label: 'ЦВЕТ',
+      content: colorSwatches(
+        id,
+        upperMaterialMap[id] ?? globalMaterial,
+        (m) => setUpperMaterial(id, m),
+      ),
+    });
+    sections.push({
+      key: 'type',
+      icon: '🗄️',
+      label: 'ТИП',
+      content: (
+        <ChipRow
+          options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['glass', 'Стекло'], ['lift', 'Подъёмный'], ['rail', 'Рейлинг']]}
+          value={upperTypeMap[id] ?? 'closed'}
+          onPick={(v) => setUpperType(id, v as any)}
+        />
+      ),
+    });
+    sections.push({
+      key: 'handle',
+      icon: '🎛️',
+      label: 'РУЧКА',
+      content: (
+        <ChipRow
+          options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}
+          value={upperHandleMap[id] ?? 'bar'}
+          onPick={(v) => setUpperHandle(id, v as any)}
+        />
+      ),
+    });
+  } else if (cab) {
+    const id = cab.id;
+    const type = cab.type;
+    const widthMm = Math.round(cab.width * 1000);
+    const isDrawer = type === 'drawer3' || type === 'drawer4';
+    const isShelf = type === 'open_shelf';
+    const hasSink = type === 'sink' || type === 'sink_stove';
+    const hasStove = type === 'stove' || type === 'sink_stove';
+    const hasDoor = !isDrawer && !isShelf && !hasSink && !hasStove && type !== 'fridge';
+    const carcassType = isDrawer ? 'drawer3' : isShelf ? 'open_shelf' : 'base';
+
+    sections.push({
+      key: 'color',
+      icon: '🎨',
+      label: 'ЦВЕТ',
+      content: colorSwatches(
+        id,
+        cabinetMaterial[id] ?? globalMaterial,
+        (m) => setCabMaterial(id, m),
+      ),
+    });
+
+    sections.push({
+      key: 'size',
+      icon: '📏',
+      label: 'РАЗМЕР',
+      content: (
+        <View style={styles.widthRow}>
+          <Pressable
+            onPress={() => { hapticTap(); resizeCabinet(id, -INTERACTION.RESIZE_STEP_MM); }}
+            style={({ pressed }) => [styles.widthBtn, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.widthSign}>−</Text>
+          </Pressable>
+          <View style={styles.widthValBox}>
+            <Text style={styles.widthVal}>{widthMm}</Text>
+            <Text style={styles.widthUnit}>{t('unit_mm')}</Text>
+          </View>
+          <Pressable
+            onPress={() => { hapticTap(); resizeCabinet(id, +INTERACTION.RESIZE_STEP_MM); }}
+            style={({ pressed }) => [styles.widthBtn, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.widthSign}>+</Text>
+          </Pressable>
+        </View>
+      ),
+    });
+
+    if (hasDoor || isDrawer || isShelf) {
+      sections.push({
+        key: 'carcass',
+        icon: '🗄️',
+        label: 'ТИП',
+        content: (
+          <ChipRow
+            options={[['base', 'Двери'], ['drawer3', 'Ящики'], ['open_shelf', 'Полки']]}
+            value={carcassType}
+            onPick={(v) => setCabinetType(id, v as any)}
+          />
+        ),
+      });
+    }
+
+    if (hasDoor) {
+      sections.push({
+        key: 'door',
+        icon: '🚪',
+        label: 'ФАСАД',
+        content: (
+          <>
+            <Text style={styles.chipLabel}>ФАСАД</Text>
+            <ChipRow
+              options={[['flat', 'Гладкая'], ['shaker', 'Шейкер'], ['grooved', 'Фрезеровка'], ['glass', 'Стекло'], ['slat', 'Рейки'], ['profile', 'Профиль']]}
+              value={cabinetDoorStyle[id] ?? globalDoorStyle}
+              onPick={(v) => setDoorStyle(id, v as any)}
+            />
+            <Text style={[styles.chipLabel, { marginTop: SPACE.md }]}>РУЧКА</Text>
+            <ChipRow
+              options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}
+              value={cabinetHandle[id] ?? globalHandle}
+              onPick={(v) => setHandle(id, v as any)}
+            />
+          </>
+        ),
+      });
+    }
+
+    if (isDrawer) {
+      const count = type === 'drawer4' ? 4 : 3;
+      sections.push({
+        key: 'drawers',
+        icon: '🗃️',
+        label: 'ЯЩИКИ',
+        content: (
+          <>
+            <Text style={styles.chipLabel}>КОЛИЧЕСТВО</Text>
+            <ChipRow
+              options={[['drawer3', '3 ящика'], ['drawer4', '4 ящика']]}
+              value={type}
+              onPick={(v) => setDrawerCount(id, v === 'drawer4' ? 4 : 3)}
+            />
+            {Array.from({ length: count }).map((_, i) => (
+              <View key={i}>
+                <Text style={[styles.chipLabel, { marginTop: SPACE.md }]}>ЯЩИК {i + 1}</Text>
+                <ChipRow
+                  options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['organizer', 'Органайзер'], ['glass', 'Стекло'], ['mesh', 'Сетка']]}
+                  value={drawerTypes[`${id}#${i}`] ?? 'closed'}
+                  onPick={(v) => setDrawerType(id, i, v as any)}
+                />
+              </View>
+            ))}
+          </>
+        ),
+      });
+    }
+
+    if (hasSink) {
+      sections.push({
+        key: 'sink',
+        icon: '🚰',
+        label: 'МОЙКА',
+        content: (
+          <>
+            <Text style={styles.chipLabel}>МОЙКА</Text>
+            <ChipRow
+              options={[['single', 'Одинарная'], ['double', 'Двойная'], ['one_half', 'Полуторная'], ['drainboard', 'С крылом']]}
+              value={cabinetSink[id] ?? sinkTypeDefault}
+              onPick={(v) => setSink(id, v as any)}
+            />
+            <Text style={[styles.chipLabel, { marginTop: SPACE.md }]}>КРАН · форма</Text>
+            <ChipRow
+              options={[['arch', 'Дуга'], ['straight', 'Прямой'], ['pull', 'Выдвижной'], ['twin', 'Двухвентильный'], ['spring', 'Пружина']]}
+              value={cabinetFaucet[id] ?? globalFaucetStyle}
+              onPick={(v) => setFaucetStyle(id, v as any)}
+            />
+            <Text style={[styles.chipLabel, { marginTop: SPACE.md }]}>КРАН · цвет</Text>
+            <ChipRow
+              options={[['chrome', 'Хром'], ['black', 'Чёрный'], ['gold', 'Золото']]}
+              value={cabinetFaucetFinish[id] ?? globalFaucetFinish}
+              onPick={(v) => setFaucetFinish(id, v as any)}
+            />
+          </>
+        ),
+      });
+    }
+
+    if (hasStove) {
+      sections.push({
+        key: 'stove',
+        icon: '🔥',
+        label: 'ПЛИТА',
+        content: (
+          <>
+            <Text style={styles.chipLabel}>ПЛИТА</Text>
+            <ChipRow
+              options={[['induction', 'Индукция'], ['gas', 'Газ'], ['gas_glass', 'Газ на стекле']]}
+              value={cabinetStove[id] ?? stoveTypeDefault}
+              onPick={(v) => setStove(id, v as any)}
+            />
+            <Text style={[styles.chipLabel, { marginTop: SPACE.md }]}>КОНФОРКИ</Text>
+            <ChipRow
+              options={[['4', '4 зоны'], ['2', '2 зоны'], ['1', '1 (домино)']]}
+              value={String(cabinetBurners[id] ?? 4)}
+              onPick={(v) => setBurners(id, v === '1' ? 1 : v === '2' ? 2 : 4)}
+            />
+          </>
+        ),
+      });
+    }
   }
 
-  const widthMm = Math.round(cab.width * 1000);
+  /* Header name for the flyout */
+  const headerName = selectedWorktop
+    ? 'СТОЛЕШНИЦА'
+    : selectedUpperId
+      ? 'ВЕРХНИЙ ШКАФ'
+      : cab
+        ? `${cabinetLabel(cab.type, lang)} · ${Math.round(cab.width * 1000)} ${t('unit_mm')}`
+        : '';
+
+  /* Auto-open the first section whenever the selection changes; clear on close */
+  useEffect(() => {
+    if (selKey) setActiveKey('color');
+    else setActiveKey(null);
+  }, [selKey]);
+
+  /* Flyout entry animation, retriggered on section change */
+  const flyAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!activeKey) return;
+    flyAnim.setValue(0);
+    Animated.timing(flyAnim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [activeKey, flyAnim]);
+
+  if (!isOpen) return null;
+
+  const active = sections.find((s) => s.key === activeKey);
+  const closeSelection = () => {
+    hapticTap();
+    if (selectedWorktop) selectWorktop(false);
+    else if (selectedUpperId) selectUpper(null);
+    else selectCabinet(null);
+  };
 
   return (
-    <Animated.View
-      pointerEvents={isOpen ? 'auto' : 'none'}
-      style={[styles.root, { bottom: bottomOffset, transform: [{ translateY }], opacity }]}
-    >
-      {/* Header row — inline "NAME · SIZE мм" with close on the right */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.name}>{cabinetLabel(cab.type, lang)}</Text>
-          <Text style={styles.headerSep}> · </Text>
-          <Text style={styles.size}>{widthMm} {t('unit_mm')}</Text>
-        </View>
-        <Pressable
-          onPress={() => { hapticTap(); selectCabinet(null); }}
-          hitSlop={12}
-          style={({ pressed }) => [styles.close, pressed && { opacity: 0.6 }]}
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {/* ── Flyout (opens to the left of the rail) ── */}
+      {active && (
+        <Animated.View
+          pointerEvents="auto"
+          style={[
+            styles.flyWrap,
+            { bottom: bottomAnchor },
+            {
+              opacity: flyAnim,
+              transform: [{ translateX: flyAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+            },
+          ]}
         >
-          <Text style={styles.closeTxt}>×</Text>
-        </Pressable>
-      </View>
-
-      {/* Width row */}
-      <View style={styles.widthRow}>
-        <Pressable
-          onPress={() => { hapticTap(); resizeCabinet(cab.id, -INTERACTION.RESIZE_STEP_MM); }}
-          style={({ pressed }) => [styles.widthBtn, pressed && { opacity: 0.6 }]}
-        >
-          <Text style={styles.widthSign}>−</Text>
-        </Pressable>
-        <View style={styles.widthValBox}>
-          <Text style={styles.widthVal}>{widthMm}</Text>
-          <Text style={styles.widthUnit}>{t('unit_mm')}</Text>
-        </View>
-        <Pressable
-          onPress={() => { hapticTap(); resizeCabinet(cab.id, +INTERACTION.RESIZE_STEP_MM); }}
-          style={({ pressed }) => [styles.widthBtn, pressed && { opacity: 0.6 }]}
-        >
-          <Text style={styles.widthSign}>+</Text>
-        </Pressable>
-      </View>
-
-      {/* Divider */}
-      <View style={styles.divider} />
-
-      {/* Explicit fixture controls — depend on cabinet type. */}
-      {(() => {
-        const type = cab.type;
-        const isDrawer = type === 'drawer3' || type === 'drawer4';
-        const isShelf = type === 'open_shelf';
-        const hasSink = type === 'sink' || type === 'sink_stove';
-        const hasStove = type === 'stove' || type === 'sink_stove';
-        const hasDoor = !isDrawer && !isShelf && !hasSink && !hasStove && type !== 'fridge';
-        const carcassType = isDrawer ? 'drawer3' : type === 'open_shelf' ? 'open_shelf' : 'base';
-
-        return (
-          <ScrollView style={styles.controls} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-            {/* Colour swatches — per-cabinet override (horizontal scroll) */}
-            <Text style={styles.chipLabel}>ЦВЕТ ФАСАДА</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.swatchRow}>
-                {PALETTE_MATERIALS.map((m) => (
-                  <MiniSwatch
-                    key={m.id}
-                    material={m}
-                    active={(cabinetMaterial[cab.id] ?? globalMaterial) === m.id}
-                    onPress={() => { hapticSwatch(); setCabMaterial(cab.id, m.id as MaterialId); }}
-                    size={34}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-
-            {/* Carcass cabinets (doors OR drawers) can switch type — this is
-                how the master reaches the drawer controls from any cabinet. */}
-            {(hasDoor || isDrawer || isShelf) && (
-              <ChipRow
-                label="ТИП ШКАФА"
-                options={[['base', 'Двери'], ['drawer3', 'Ящики'], ['open_shelf', 'Полки']]}
-                value={carcassType}
-                onPick={(v) => setCabinetType(cab.id, v as any)}
-              />
-            )}
-
-            {hasDoor && (
-              <>
-                <ChipRow
-                  label="ФАСАД"
-                  options={[['flat', 'Гладкая'], ['shaker', 'Шейкер'], ['grooved', 'Фрезеровка'], ['glass', 'Стекло'], ['slat', 'Рейки'], ['profile', 'Профиль']]}
-                  value={cabinetDoorStyle[cab.id] ?? globalDoorStyle}
-                  onPick={(v) => setDoorStyle(cab.id, v as any)}
-                />
-                <ChipRow
-                  label="РУЧКА"
-                  options={[['bar', 'Рейлинг'], ['knob', 'Кнопка'], ['inset', 'Врезная']]}
-                  value={cabinetHandle[cab.id] ?? globalHandle}
-                  onPick={(v) => setHandle(cab.id, v as any)}
-                />
-              </>
-            )}
-
-            {isDrawer && (
-              <>
-                <ChipRow
-                  label="КОЛИЧЕСТВО ЯЩИКОВ"
-                  options={[['drawer3', '3 ящика'], ['drawer4', '4 ящика']]}
-                  value={type}
-                  onPick={(v) => setDrawerCount(cab.id, v === 'drawer4' ? 4 : 3)}
-                />
-                {Array.from({ length: type === 'drawer4' ? 4 : 3 }).map((_, i) => (
-                  <ChipRow
-                    key={i}
-                    label={`ЯЩИК ${i + 1}`}
-                    options={[['closed', 'Закрытый'], ['open', 'Открытый'], ['organizer', 'Органайзер'], ['glass', 'Стекло'], ['mesh', 'Сетка']]}
-                    value={drawerTypes[`${cab.id}#${i}`] ?? 'closed'}
-                    onPick={(v) => setDrawerType(cab.id, i, v as any)}
-                  />
-                ))}
-              </>
-            )}
-
-            {hasSink && (
-              <>
-                <ChipRow
-                  label="МОЙКА"
-                  options={[['single', 'Одинарная'], ['double', 'Двойная'], ['one_half', 'Полуторная'], ['drainboard', 'С крылом']]}
-                  value={cabinetSink[cab.id] ?? sinkTypeDefault}
-                  onPick={(v) => setSink(cab.id, v as any)}
-                />
-                <ChipRow
-                  label="КРАН · форма"
-                  options={[['arch', 'Дуга'], ['straight', 'Прямой'], ['pull', 'Выдвижной'], ['twin', 'Двухвентильный'], ['spring', 'Пружина']]}
-                  value={cabinetFaucet[cab.id] ?? globalFaucetStyle}
-                  onPick={(v) => setFaucetStyle(cab.id, v as any)}
-                />
-                <ChipRow
-                  label="КРАН · цвет"
-                  options={[['chrome', 'Хром'], ['black', 'Чёрный'], ['gold', 'Золото']]}
-                  value={cabinetFaucetFinish[cab.id] ?? globalFaucetFinish}
-                  onPick={(v) => setFaucetFinish(cab.id, v as any)}
-                />
-              </>
-            )}
-
-            {hasStove && (
-              <>
-                <ChipRow
-                  label="ПЛИТА"
-                  options={[['induction', 'Индукция'], ['gas', 'Газ'], ['gas_glass', 'Газ на стекле']]}
-                  value={cabinetStove[cab.id] ?? stoveTypeDefault}
-                  onPick={(v) => setStove(cab.id, v as any)}
-                />
-                <ChipRow
-                  label="КОНФОРКИ"
-                  options={[['4', '4 зоны'], ['2', '2 зоны'], ['1', '1 (домино)']]}
-                  value={String(cabinetBurners[cab.id] ?? 4)}
-                  onPick={(v) => setBurners(cab.id, v === '1' ? 1 : v === '2' ? 2 : 4)}
-                />
-              </>
-            )}
-
-          </ScrollView>
-        );
-      })()}
-    </Animated.View>
-  );
-}
-
-/** A labelled row of selectable chips. */
-function ChipRow({
-  label,
-  options,
-  value,
-  onPick,
-}: {
-  label: string;
-  options: [string, string][];
-  value: string;
-  onPick: (value: string) => void;
-}) {
-  return (
-    <View style={styles.chipBlock}>
-      <Text style={styles.chipLabel}>{label}</Text>
-      <View style={styles.chipRow}>
-        {options.map(([val, txt]) => {
-          const active = val === value;
-          return (
-            <Pressable
-              key={val}
-              onPress={() => { hapticTap(); onPick(val); }}
-              style={[styles.chip, active && styles.chipActive]}
+          <View style={styles.flyCard}>
+            <Text style={styles.flyName} numberOfLines={1}>{headerName}</Text>
+            <Text style={styles.flySection}>{active.label}</Text>
+            <View style={styles.divider} />
+            <ScrollView
+              style={styles.flyScroll}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
             >
-              <Text style={[styles.chipTxt, active && styles.chipTxtActive]}>{txt}</Text>
-            </Pressable>
-          );
-        })}
+              {active.content}
+            </ScrollView>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ── Rail (right edge) ── */}
+      <View style={[styles.railWrap, { bottom: bottomAnchor }]} pointerEvents="box-none">
+        <View style={styles.railCard}>
+          {sections.map((s) => {
+            const on = s.key === activeKey;
+            return (
+              <Pressable
+                key={s.key}
+                onPress={() => { hapticTap(); setActiveKey((p) => (p === s.key ? null : s.key)); }}
+                style={({ pressed }) => [styles.railItem, on && styles.railItemOn, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={styles.railIcon}>{s.icon}</Text>
+                <Text style={[styles.railLabel, on && styles.railLabelOn]} numberOfLines={1}>{s.label}</Text>
+              </Pressable>
+            );
+          })}
+          <View style={styles.railDivider} />
+          <Pressable
+            onPress={closeSelection}
+            hitSlop={8}
+            style={({ pressed }) => [styles.railClose, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={styles.railCloseTxt}>×</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
 }
 
+/** A wrap row of selectable chips. */
+function ChipRow({
+  options,
+  value,
+  onPick,
+}: {
+  options: [string, string][];
+  value: string;
+  onPick: (value: string) => void;
+}) {
+  return (
+    <View style={styles.chipRow}>
+      {options.map(([val, txt]) => {
+        const active = val === value;
+        return (
+          <Pressable
+            key={val}
+            onPress={() => { hapticTap(); onPick(val); }}
+            style={[styles.chip, active && styles.chipActive]}
+          >
+            <Text style={[styles.chipTxt, active && styles.chipTxtActive]}>{txt}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const RAIL_W = 60;
+
 const styles = StyleSheet.create({
-  root: {
+  /* ── Rail ── */
+  railWrap: {
     position: 'absolute',
-    left: SPACE.lg,
-    right: SPACE.lg,
+    right: SPACE.sm,
+    top: 0,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  railCard: {
+    width: RAIL_W,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADII.lg,
+    paddingVertical: SPACE.sm,
+    alignItems: 'center',
+    ...SHADOWS.xl,
+  },
+  railItem: {
+    width: RAIL_W - 8,
+    paddingVertical: SPACE.sm,
+    borderRadius: RADII.md,
+    alignItems: 'center',
+    marginVertical: 1,
+  },
+  railItemOn: { backgroundColor: COLORS.bgSoft },
+  railIcon: { fontSize: 21, marginBottom: 2 },
+  railLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 8 },
+  railLabelOn: { color: COLORS.ink },
+  railDivider: {
+    width: RAIL_W - 20,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.line,
+    marginVertical: SPACE.xs,
+  },
+  railClose: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: COLORS.bgSoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  railCloseTxt: { fontSize: 22, color: COLORS.inkSoft, marginTop: -3 },
+
+  /* ── Flyout ── */
+  flyWrap: {
+    position: 'absolute',
+    right: RAIL_W + SPACE.sm + SPACE.sm,
+    top: 0,
+    width: '48%',
+    justifyContent: 'flex-end',
+  },
+  flyCard: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADII.lg,
     padding: SPACE.lg,
+    maxHeight: 380,
     ...SHADOWS.xl,
   },
-  header: {
+  flyName: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9 },
+  flySection: { ...TYPE.sectionLabel, color: COLORS.ink, fontSize: 14, marginTop: 2 },
+  flyScroll: {},
+
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.line, marginVertical: SPACE.md },
+
+  /* ── Controls ── */
+  chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 6 },
+  swatchGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACE.md,
+    flexWrap: 'wrap',
+    gap: SPACE.sm,
   },
-  headerLeft: { flex: 1, flexDirection: 'row', alignItems: 'baseline' },
-  name: { ...TYPE.sectionLabel, color: COLORS.ink, fontSize: 12 },
-  headerSep: { ...TYPE.body, color: COLORS.inkFaint, fontSize: 12 },
-  size: { ...TYPE.body, color: COLORS.inkMuted, fontSize: 12, fontFamily: 'monospace' },
-  close: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: COLORS.bgSoft, alignItems: 'center', justifyContent: 'center',
+  worktopSwatch: {
+    width: 48,
+    height: 40,
+    borderRadius: RADII.sm,
+    borderWidth: 1,
+    borderColor: COLORS.line,
   },
-  closeTxt: { fontSize: 22, color: COLORS.inkSoft, marginTop: -4 },
+  worktopSwatchActive: { borderWidth: 2, borderColor: COLORS.ink },
   widthRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACE.sm,
   },
   widthBtn: {
-    width: 56, height: 44, borderRadius: RADII.md,
+    width: 52, height: 48, borderRadius: RADII.md,
     backgroundColor: COLORS.bgSoft,
     alignItems: 'center', justifyContent: 'center',
   },
-  widthSign: { fontSize: 22, color: COLORS.ink, fontWeight: '300' },
+  widthSign: { fontSize: 24, color: COLORS.ink, fontWeight: '300' },
   widthValBox: {
-    flex: 1, height: 44, borderRadius: RADII.md,
+    flex: 1, height: 48, borderRadius: RADII.md,
     backgroundColor: COLORS.bgSoft,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: SPACE.xs,
   },
   widthVal:  { ...TYPE.wallPill, color: COLORS.ink, fontFamily: 'monospace' },
   widthUnit: { ...TYPE.body, color: COLORS.inkMuted, fontSize: 12 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.line, marginVertical: SPACE.md },
-  hint: { ...TYPE.hint, color: COLORS.inkFaint, fontSize: 10, textAlign: 'center', marginTop: SPACE.xs },
-
-  controls: { maxHeight: 186 },
-  chipBlock: { marginBottom: SPACE.sm },
-  chipLabel: { ...TYPE.sectionLabel, color: COLORS.inkMuted, fontSize: 9, marginBottom: 4 },
-  swatchRow: {
-    flexDirection: 'row',
-    gap: SPACE.xs,
-    marginBottom: SPACE.sm,
-    paddingRight: SPACE.sm,
-  },
-  worktopSwatch: {
-    width: 40,
-    height: 34,
-    borderRadius: RADII.sm,
-    borderWidth: 1,
-    borderColor: COLORS.line,
-  },
-  worktopSwatchActive: { borderWidth: 2, borderColor: COLORS.ink },
   chipRow: { flexDirection: 'row', gap: SPACE.xs, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: SPACE.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: RADII.md,
     borderWidth: 1,
     borderColor: COLORS.lineStrong,
